@@ -2,9 +2,51 @@ const { pool } = require('../config/db');
 const { ApiError } = require('../middleware/errorHandler');
 const { productSchema, formatValidationError } = require('../validators/productValidator');
 const { mapProductRecord } = require('../utils/productMappers');
+const { uploadBufferToCloudinary } = require('../utils/uploadToCloudinary');
+
+const toNumber = (value) => {
+  if (value === undefined || value === null || value === '') {
+    return Number.NaN;
+  }
+  return Number(value);
+};
+
+const parseSpecifications = (specifications) => {
+  if (!specifications) return null;
+  if (typeof specifications === 'object') return specifications;
+  if (typeof specifications === 'string') {
+    if (!specifications.trim()) {
+      return null;
+    }
+    try {
+      return JSON.parse(specifications);
+    } catch (error) {
+      throw new ApiError(400, 'Invalid specifications format. Please provide valid JSON.');
+    }
+  }
+  return null;
+};
+
+const buildProductPayload = (body) => ({
+  name: body.name,
+  description: body.description ?? '',
+  category: body.category,
+  image_url: body.image_url ?? '',
+  rental_price_per_day: toNumber(body.rental_price_per_day),
+  refundable_deposit: toNumber(body.refundable_deposit),
+  status: body.status,
+  specifications: parseSpecifications(body.specifications),
+});
 
 const createProduct = async (req, res, next) => {
-  const { error, value } = productSchema.validate(req.body, { abortEarly: false });
+  let payload;
+  try {
+    payload = buildProductPayload(req.body);
+  } catch (parseError) {
+    return next(parseError);
+  }
+
+  const { error, value } = productSchema.validate(payload, { abortEarly: false });
   if (error) {
     return next(new ApiError(400, 'Validation failed', formatValidationError(error)));
   }
@@ -14,11 +56,29 @@ const createProduct = async (req, res, next) => {
     const vendorId = req.user.id;
     const vendorName = req.user.name;
 
+     let imageUrl = value.image_url || '';
+
+     if (req.file) {
+       try {
+         const uploadResult = await uploadBufferToCloudinary(
+           req.file.buffer,
+           'rent-return/product-images'
+         );
+         imageUrl = uploadResult.secure_url;
+       } catch (uploadError) {
+         return next(new ApiError(500, 'Failed to upload product image'));
+       }
+     }
+
+     if (!imageUrl) {
+       return next(new ApiError(400, 'Product image is required'));
+     }
+
     const specificationsJson = value.specifications 
       ? JSON.stringify(value.specifications) 
       : null;
 
-    const [result] = await connection.query(
+    await connection.query(
       `INSERT INTO products (
         name, description, category, image_url, rental_price_per_day,
         refundable_deposit, status, vendor_id, vendor_name, vendor_rating, specifications
@@ -27,7 +87,7 @@ const createProduct = async (req, res, next) => {
         value.name.trim(),
         value.description?.trim() || '',
         value.category,
-        value.image_url || '',
+        imageUrl,
         value.rental_price_per_day,
         value.refundable_deposit,
         value.status || 'available',
@@ -37,13 +97,11 @@ const createProduct = async (req, res, next) => {
       ]
     );
 
-    // Since we're using UUID() in MySQL, we need to get the generated UUID
-    // Query by vendor_id, name, and most recent created_at to get the newly created product
     const [newProductRows] = await connection.query(
       `SELECT * FROM products 
-       WHERE vendor_id = ? AND name = ? 
+       WHERE vendor_id = ? 
        ORDER BY created_at DESC LIMIT 1`,
-      [vendorId, value.name.trim()]
+      [vendorId]
     );
 
     if (newProductRows.length === 0) {
@@ -105,7 +163,14 @@ const getProductById = async (req, res, next) => {
 };
 
 const updateProduct = async (req, res, next) => {
-  const { error, value } = productSchema.validate(req.body, { abortEarly: false });
+  let payload;
+  try {
+    payload = buildProductPayload(req.body);
+  } catch (parseError) {
+    return next(parseError);
+  }
+
+  const { error, value } = productSchema.validate(payload, { abortEarly: false });
   if (error) {
     return next(new ApiError(400, 'Validation failed', formatValidationError(error)));
   }
@@ -114,14 +179,34 @@ const updateProduct = async (req, res, next) => {
     const { id } = req.params;
     const vendorId = req.user.id;
 
-    // Check if product exists and belongs to vendor
-    const [existing] = await pool.query(
-      `SELECT id FROM products WHERE id = ? AND vendor_id = ? LIMIT 1`,
+    const [existingRows] = await pool.query(
+      `SELECT * FROM products WHERE id = ? AND vendor_id = ? LIMIT 1`,
       [id, vendorId]
     );
 
-    if (existing.length === 0) {
+    if (existingRows.length === 0) {
       throw new ApiError(404, 'Product not found');
+    }
+
+    const existingProduct = existingRows[0];
+    let imageUrl = existingProduct.image_url || '';
+
+    if (req.file) {
+      try {
+        const uploadResult = await uploadBufferToCloudinary(
+          req.file.buffer,
+          'rent-return/product-images'
+        );
+        imageUrl = uploadResult.secure_url;
+      } catch (uploadError) {
+        return next(new ApiError(500, 'Failed to upload product image'));
+      }
+    } else if (value.image_url) {
+      imageUrl = value.image_url;
+    }
+
+    if (!imageUrl) {
+      return next(new ApiError(400, 'Product image is required'));
     }
 
     const specificationsJson = value.specifications 
@@ -138,7 +223,7 @@ const updateProduct = async (req, res, next) => {
         value.name.trim(),
         value.description?.trim() || '',
         value.category,
-        value.image_url || '',
+        imageUrl,
         value.rental_price_per_day,
         value.refundable_deposit,
         value.status || 'available',

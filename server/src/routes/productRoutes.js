@@ -8,6 +8,7 @@ const {
 } = require('../controllers/productController');
 const { protect } = require('../middleware/authMiddleware');
 const { authorizeRoles } = require('../middleware/roleMiddleware');
+const upload = require('../middleware/upload');
 
 const router = Router();
 
@@ -15,11 +16,11 @@ const router = Router();
 router.use(protect);
 router.use(authorizeRoles('vendor'));
 
-router.post('/', createProduct);
+router.post('/', upload.single('image'), createProduct);
 router.get('/', getVendorProducts);
 router.get('/:id', getProductById);
-router.put('/:id', updateProduct);
-router.patch('/:id', updateProduct);
+router.put('/:id', upload.single('image'), updateProduct);
+router.patch('/:id', upload.single('image'), updateProduct);
 router.delete('/:id', deleteProduct);
 
 module.exports = router;

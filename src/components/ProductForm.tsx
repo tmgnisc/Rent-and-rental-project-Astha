@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,7 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Product, ProductCategory, RentalStatus } from '@/store/slices/productsSlice';
 import { toast } from 'sonner';
 
-type ProductFormData = {
+type ProductFormFields = {
   name: string;
   description: string;
   category: ProductCategory;
@@ -27,13 +27,13 @@ type ProductFormData = {
 
 type ProductFormProps = {
   product?: Product | null;
-  onSubmit: (data: ProductFormData) => Promise<void>;
+  onSubmit: (data: FormData) => Promise<void>;
   onCancel?: () => void;
   loading?: boolean;
 };
 
 const ProductForm = ({ product, onSubmit, onCancel, loading = false }: ProductFormProps) => {
-  const [formData, setFormData] = useState<ProductFormData>({
+  const [formData, setFormData] = useState<ProductFormFields>({
     name: '',
     description: '',
     category: 'electronics',
@@ -45,6 +45,9 @@ const ProductForm = ({ product, onSubmit, onCancel, loading = false }: ProductFo
   });
 
   const [specs, setSpecs] = useState<{ key: string; value: string }[]>([]);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>('');
+  const objectUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (product) {
@@ -61,8 +64,40 @@ const ProductForm = ({ product, onSubmit, onCancel, loading = false }: ProductFo
       setSpecs(
         Object.entries(product.specifications || {}).map(([key, value]) => ({ key, value }))
       );
+      setImagePreview(product.image || '');
+      setImageFile(null);
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = null;
+      }
+    } else {
+      setFormData({
+        name: '',
+        description: '',
+        category: 'electronics',
+        image_url: '',
+        rental_price_per_day: 0,
+        refundable_deposit: 0,
+        status: 'available',
+        specifications: {},
+      });
+      setSpecs([]);
+      setImagePreview('');
+      setImageFile(null);
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = null;
+      }
     }
   }, [product]);
+
+  useEffect(() => {
+    return () => {
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+      }
+    };
+  }, []);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -81,6 +116,20 @@ const ProductForm = ({ product, onSubmit, onCancel, loading = false }: ProductFo
       ...prev,
       [name]: value,
     }));
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = null;
+    }
+    const previewUrl = URL.createObjectURL(file);
+    objectUrlRef.current = previewUrl;
+    setImagePreview(previewUrl);
+    setImageFile(file);
+    setFormData((prev) => ({ ...prev, image_url: '' }));
   };
 
   const handleSpecChange = (index: number, field: 'key' | 'value', value: string) => {
@@ -115,6 +164,16 @@ const ProductForm = ({ product, onSubmit, onCancel, loading = false }: ProductFo
       return;
     }
 
+    if (!product && !imageFile) {
+      toast.error('Please upload a product image');
+      return;
+    }
+
+    if (product && !imageFile && !formData.image_url) {
+      toast.error('Product image is required');
+      return;
+    }
+
     const specifications: Record<string, string> = {};
     specs.forEach((spec) => {
       if (spec.key.trim() && spec.value.trim()) {
@@ -122,10 +181,25 @@ const ProductForm = ({ product, onSubmit, onCancel, loading = false }: ProductFo
       }
     });
 
-    await onSubmit({
-      ...formData,
-      specifications: Object.keys(specifications).length > 0 ? specifications : null,
-    });
+    const payload = new FormData();
+    payload.append('name', formData.name.trim());
+    payload.append('description', formData.description.trim());
+    payload.append('category', formData.category);
+    payload.append('rental_price_per_day', String(formData.rental_price_per_day));
+    payload.append('refundable_deposit', String(formData.refundable_deposit));
+    payload.append('status', formData.status);
+
+    if (Object.keys(specifications).length > 0) {
+      payload.append('specifications', JSON.stringify(specifications));
+    }
+
+    if (imageFile) {
+      payload.append('image', imageFile);
+    } else if (formData.image_url) {
+      payload.append('image_url', formData.image_url);
+    }
+
+    await onSubmit(payload);
   };
 
   return (
