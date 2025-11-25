@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { RootState } from '@/store/store';
-import { Product, ProductCategory } from '@/store/slices/productsSlice';
+import { Product } from '@/store/slices/productsSlice';
 import { apiRequest } from '@/lib/api';
 import { toast } from 'sonner';
 import ProductForm from '@/components/ProductForm';
