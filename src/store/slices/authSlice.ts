@@ -1,6 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-export type UserRole = 'user' | 'admin' | 'superadmin';
+export type UserRole = 'user' | 'vendor' | 'admin' | 'superadmin';
 
 export interface User {
   id: string;
@@ -8,6 +8,9 @@ export interface User {
   name: string;
   role: UserRole;
   isVerified: boolean;
+  vendorDocumentUrl?: string | null;
+  verificationStatus?: 'pending' | 'approved' | 'rejected' | null;
+  documentVerifiedBy?: string | null;
 }
 
 interface AuthState {

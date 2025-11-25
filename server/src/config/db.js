@@ -22,10 +22,15 @@ const createUsersTable = `
     name VARCHAR(120) NOT NULL,
     email VARCHAR(160) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
-    role ENUM('user','admin','superadmin') NOT NULL DEFAULT 'user',
+    role ENUM('user','vendor','admin','superadmin') NOT NULL DEFAULT 'user',
     is_verified TINYINT(1) NOT NULL DEFAULT 0,
+    vendor_document_url VARCHAR(500),
+    verification_status ENUM('pending','approved','rejected') DEFAULT 'approved',
+    document_verified_by CHAR(36),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_document_verified_by FOREIGN KEY (document_verified_by)
+      REFERENCES users(id) ON DELETE SET NULL
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 `;
 

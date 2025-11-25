@@ -15,7 +15,8 @@ const protect = async (req, res, next) => {
   try {
     const decoded = verifyToken(token);
     const [rows] = await pool.query(
-      `SELECT id, name, email, role, is_verified, created_at, updated_at FROM users WHERE id = ? LIMIT 1`,
+      `SELECT id, name, email, role, is_verified, vendor_document_url, verification_status, document_verified_by, created_at, updated_at
+       FROM users WHERE id = ? LIMIT 1`,
       [decoded.sub]
     );
 

@@ -1,23 +1,73 @@
+import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/store/store';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Users, Package, DollarSign, Shield, TrendingUp, AlertTriangle } from 'lucide-react';
+import { toast } from 'sonner';
+import { apiRequest } from '@/lib/api';
+
+type PendingVendor = {
+  id: string;
+  name: string;
+  email: string;
+  vendorDocumentUrl: string | null;
+  verificationStatus: 'pending' | 'approved' | 'rejected' | null;
+  createdAt: string;
+};
 
 const SuperAdminDashboard = () => {
-  const { user } = useSelector((state: RootState) => state.auth);
+  const { user, token } = useSelector((state: RootState) => state.auth);
+  const [pendingVendors, setPendingVendors] = useState<PendingVendor[]>([]);
+  const [loadingVendors, setLoadingVendors] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user?.role === 'superadmin' && token) {
+      void fetchPendingVendors();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.role, token]);
+
+  const fetchPendingVendors = async () => {
+    if (!token) return;
+    setLoadingVendors(true);
+    try {
+      const data = await apiRequest<{ success: boolean; vendors: PendingVendor[] }>('/vendors/pending', {
+        token,
+      });
+      setPendingVendors(data.vendors);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to load vendors');
+    } finally {
+      setLoadingVendors(false);
+    }
+  };
+
+  const handleVerify = async (vendorId: string, status: 'approved' | 'rejected') => {
+    if (!token) return;
+    setActionLoading(`${vendorId}-${status}`);
+    try {
+      const data = await apiRequest<{ success: boolean; message: string }>(`/vendors/${vendorId}/verify`, {
+        method: 'PATCH',
+        body: { status },
+        token,
+      });
+      toast.success(data.message);
+      setPendingVendors((prev) => prev.filter((vendor) => vendor.id !== vendorId));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update vendor');
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   const stats = [
     { label: 'Total Users', value: '1,234', icon: Users, change: '+89 this month' },
-    { label: 'Total Vendors', value: '156', icon: Shield, change: '+12 pending' },
+    { label: 'Pending Vendors', value: pendingVendors.length.toString(), icon: Shield, change: `${pendingVendors.length} awaiting review` },
     { label: 'Total Products', value: '2,345', icon: Package, change: 'Across all vendors' },
     { label: 'Platform Revenue', value: '₹12.5L', icon: DollarSign, change: '+18% growth' },
-  ];
-
-  const pendingVendors = [
-    { id: '1', name: 'Tech Rentals Plus', products: 0, status: 'pending', date: '2025-01-28' },
-    { id: '2', name: 'Fashion Hub', products: 0, status: 'pending', date: '2025-01-27' },
   ];
 
   const recentDisputes = [
@@ -65,23 +115,55 @@ const SuperAdminDashboard = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {pendingVendors.map((vendor) => (
-                  <div 
-                    key={vendor.id}
-                    className="flex items-center justify-between p-4 border rounded-lg"
-                  >
-                    <div>
-                      <h3 className="font-semibold">{vendor.name}</h3>
-                      <p className="text-sm text-muted-foreground">Applied on {vendor.date}</p>
+              {loadingVendors ? (
+                <p className="text-sm text-muted-foreground">Loading pending vendors...</p>
+              ) : pendingVendors.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No pending vendor applications.</p>
+              ) : (
+                <div className="space-y-3">
+                  {pendingVendors.map((vendor) => (
+                    <div 
+                      key={vendor.id}
+                      className="flex flex-col gap-3 border rounded-lg p-4 md:flex-row md:items-center md:justify-between"
+                    >
+                      <div>
+                        <h3 className="font-semibold">{vendor.name}</h3>
+                        <p className="text-sm text-muted-foreground">{vendor.email}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Applied on {new Date(vendor.createdAt).toLocaleDateString()}
+                        </p>
+                        {vendor.vendorDocumentUrl && (
+                          <a
+                            href={vendor.vendorDocumentUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-xs font-medium text-primary hover:underline"
+                          >
+                            View Document
+                          </a>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={actionLoading === `${vendor.id}-rejected`}
+                          onClick={() => handleVerify(vendor.id, 'rejected')}
+                        >
+                          {actionLoading === `${vendor.id}-rejected` ? 'Rejecting...' : 'Reject'}
+                        </Button>
+                        <Button
+                          size="sm"
+                          disabled={actionLoading === `${vendor.id}-approved`}
+                          onClick={() => handleVerify(vendor.id, 'approved')}
+                        >
+                          {actionLoading === `${vendor.id}-approved` ? 'Approving...' : 'Approve'}
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline">Reject</Button>
-                      <Button size="sm">Approve</Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 
