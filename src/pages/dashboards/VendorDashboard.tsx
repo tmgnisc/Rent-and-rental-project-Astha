@@ -50,7 +50,9 @@ const VendorDashboard = () => {
   const navigate = useNavigate();
   const [activeView, setActiveView] = useState<'overview' | 'products' | 'add-product' | 'analytics' | 'settings'>('overview');
   const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [formSubmitting, setFormSubmitting] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deleteProductId, setDeleteProductId] = useState<string | null>(null);
 
@@ -62,7 +64,7 @@ const VendorDashboard = () => {
 
   const fetchProducts = async () => {
     if (!token) return;
-    setLoading(true);
+    setLoadingProducts(true);
     try {
       const data = await apiRequest<{ success: boolean; products: Product[] }>('/products', {
         token,
@@ -71,22 +73,13 @@ const VendorDashboard = () => {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to load products');
     } finally {
-      setLoading(false);
+      setLoadingProducts(false);
     }
   };
 
-  const handleCreateProduct = async (formData: {
-    name: string;
-    description: string;
-    category: ProductCategory;
-    image_url: string;
-    rental_price_per_day: number;
-    refundable_deposit: number;
-    status: 'available' | 'rented' | 'maintenance';
-    specifications: Record<string, string> | null;
-  }) => {
+  const handleCreateProduct = async (formData: FormData) => {
     if (!token) return;
-    setLoading(true);
+    setFormSubmitting(true);
     try {
       await apiRequest<{ success: boolean; message: string; product: Product }>('/products', {
         method: 'POST',
@@ -100,22 +93,13 @@ const VendorDashboard = () => {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to create product');
     } finally {
-      setLoading(false);
+      setFormSubmitting(false);
     }
   };
 
-  const handleUpdateProduct = async (formData: {
-    name: string;
-    description: string;
-    category: ProductCategory;
-    image_url: string;
-    rental_price_per_day: number;
-    refundable_deposit: number;
-    status: 'available' | 'rented' | 'maintenance';
-    specifications: Record<string, string> | null;
-  }) => {
+  const handleUpdateProduct = async (formData: FormData) => {
     if (!token || !editingProduct) return;
-    setLoading(true);
+    setFormSubmitting(true);
     try {
       await apiRequest<{ success: boolean; message: string; product: Product }>(
         `/products/${editingProduct.id}`,
@@ -132,13 +116,13 @@ const VendorDashboard = () => {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to update product');
     } finally {
-      setLoading(false);
+      setFormSubmitting(false);
     }
   };
 
   const handleDeleteProduct = async () => {
     if (!token || !deleteProductId) return;
-    setLoading(true);
+    setDeleteLoading(true);
     try {
       await apiRequest<{ success: boolean; message: string }>(`/products/${deleteProductId}`, {
         method: 'DELETE',
@@ -150,7 +134,7 @@ const VendorDashboard = () => {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to delete product');
     } finally {
-      setLoading(false);
+      setDeleteLoading(false);
     }
   };
 
@@ -205,7 +189,7 @@ const VendorDashboard = () => {
                 <CardDescription>Your latest products</CardDescription>
               </CardHeader>
               <CardContent>
-                {loading ? (
+                {loadingProducts ? (
                   <p className="text-sm text-muted-foreground">Loading...</p>
                 ) : products.length === 0 ? (
                   <div className="text-center py-4">
@@ -258,7 +242,7 @@ const VendorDashboard = () => {
                 <CardDescription>All your listed products</CardDescription>
               </CardHeader>
               <CardContent>
-                {loading ? (
+                {loadingProducts ? (
                   <p className="text-sm text-muted-foreground">Loading products...</p>
                 ) : products.length === 0 ? (
                   <div className="text-center py-8">
@@ -346,7 +330,7 @@ const VendorDashboard = () => {
                 setEditingProduct(null);
                 setActiveView('products');
               }}
-              loading={loading}
+              loading={formSubmitting}
             />
           </>
         );
@@ -496,13 +480,13 @@ const VendorDashboard = () => {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+              <AlertDialogCancel disabled={deleteLoading}>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleDeleteProduct}
-                disabled={loading}
+                disabled={deleteLoading}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
-                {loading ? 'Deleting...' : 'Delete'}
+                {deleteLoading ? 'Deleting...' : 'Delete'}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

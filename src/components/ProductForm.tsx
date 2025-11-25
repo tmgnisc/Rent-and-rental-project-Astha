@@ -257,15 +257,31 @@ const ProductForm = ({ product, onSubmit, onCancel, loading = false }: ProductFo
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="image_url">Image URL</Label>
+            <Label htmlFor="product_image">
+              Product Image {product ? '' : '*'}
+            </Label>
             <Input
-              id="image_url"
-              name="image_url"
-              type="url"
-              value={formData.image_url}
-              onChange={handleChange}
-              placeholder="https://example.com/image.jpg"
+              id="product_image"
+              name="product_image"
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+              disabled={loading}
             />
+            {imagePreview ? (
+              <div className="mt-3 space-y-1">
+                <p className="text-xs text-muted-foreground">Preview</p>
+                <img
+                  src={imagePreview}
+                  alt="Product preview"
+                  className="h-36 w-36 rounded-lg object-cover border"
+                />
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Upload an image to showcase your product.
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
