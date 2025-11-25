@@ -1,4 +1,5 @@
 const mysql = require('mysql2/promise');
+const bcrypt = require('bcryptjs');
 const { db } = require('./env');
 
 const pool = mysql.createPool({
@@ -78,6 +79,27 @@ const createRentalsTable = `
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 `;
 
+const seedSuperAdmin = async (connection) => {
+  const [existing] = await connection.query(
+    "SELECT id FROM users WHERE role = 'superadmin' LIMIT 1"
+  );
+
+  if (existing.length === 0) {
+    const passwordHash = await bcrypt.hash('SuperAdmin@123', 10);
+    await connection.query(
+      `INSERT INTO users (name, email, password_hash, role, is_verified)
+       VALUES (:name, :email, :password_hash, 'superadmin', 1)`,
+      {
+        name: 'Super Admin',
+        email: 'superadmin@rentreturn.com',
+        password_hash: passwordHash,
+      }
+    );
+    // eslint-disable-next-line no-console
+    console.info('✅ Seeded default superadmin (superadmin@rentreturn.com / SuperAdmin@123)');
+  }
+};
+
 const initDatabase = async () => {
   const connection = await pool.getConnection();
   try {
@@ -86,6 +108,7 @@ const initDatabase = async () => {
     await connection.query(createProductsTable);
     await connection.query(createProductImagesTable);
     await connection.query(createRentalsTable);
+    await seedSuperAdmin(connection);
     // eslint-disable-next-line no-console
     console.info('✅ Database tables are ready.');
   } catch (error) {

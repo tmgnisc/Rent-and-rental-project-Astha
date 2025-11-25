@@ -1,13 +1,21 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import { setCredentials } from '@/store/slices/authSlice';
+import { setCredentials, User } from '@/store/slices/authSlice';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Package } from 'lucide-react';
 import { toast } from 'sonner';
+import { apiRequest } from '@/lib/api';
+
+type AuthResponse = {
+  success: boolean;
+  message: string;
+  user: User;
+  token: string;
+};
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -37,24 +45,24 @@ const Signup = () => {
 
     setLoading(true);
 
-    // Mock signup - in real app, this would call an API
-    setTimeout(() => {
-      const mockUser = {
-        id: 'new-' + Date.now(),
-        email: formData.email,
-        name: formData.name,
-        role: 'user' as const,
-        isVerified: false,
-      };
+    try {
+      const data = await apiRequest<AuthResponse>('/auth/register', {
+        method: 'POST',
+        body: {
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+        },
+      });
 
-      const mockToken = 'mock-jwt-token-' + Date.now();
-      
-      dispatch(setCredentials({ user: mockUser, token: mockToken }));
-      toast.success('Account created successfully!');
+      dispatch(setCredentials({ user: data.user, token: data.token }));
+      toast.success(data.message || 'Account created successfully!');
       navigate('/dashboard/user');
-      
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to sign up');
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   return (

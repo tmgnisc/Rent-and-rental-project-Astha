@@ -17,10 +17,22 @@ interface AuthState {
   loading: boolean;
 }
 
+const storedToken = localStorage.getItem('token');
+const storedUser = localStorage.getItem('user');
+
+let parsedUser: User | null = null;
+if (storedUser) {
+  try {
+    parsedUser = JSON.parse(storedUser) as User;
+  } catch (error) {
+    localStorage.removeItem('user');
+  }
+}
+
 const initialState: AuthState = {
-  user: null,
-  token: localStorage.getItem('token'),
-  isAuthenticated: false,
+  user: parsedUser,
+  token: storedToken,
+  isAuthenticated: Boolean(storedToken && parsedUser),
   loading: false,
 };
 
@@ -33,12 +45,14 @@ const authSlice = createSlice({
       state.token = action.payload.token;
       state.isAuthenticated = true;
       localStorage.setItem('token', action.payload.token);
+      localStorage.setItem('user', JSON.stringify(action.payload.user));
     },
     logout: (state) => {
       state.user = null;
       state.token = null;
       state.isAuthenticated = false;
       localStorage.removeItem('token');
+      localStorage.removeItem('user');
     },
     setLoading: (state, action: PayloadAction<boolean>) => {
       state.loading = action.payload;
