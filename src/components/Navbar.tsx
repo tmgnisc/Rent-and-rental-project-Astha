@@ -26,8 +26,9 @@ const Navbar = () => {
   };
 
   const getDashboardRoute = () => {
-    if (user?.role === 'admin') return '/dashboard/admin';
     if (user?.role === 'superadmin') return '/dashboard/superadmin';
+    if (user?.role === 'admin') return '/dashboard/admin';
+    if (user?.role === 'vendor') return '/dashboard/vendor';
     return '/dashboard/user';
   };
 

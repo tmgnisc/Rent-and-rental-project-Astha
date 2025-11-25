@@ -37,10 +37,12 @@ const Login = () => {
       dispatch(setCredentials({ user: data.user, token: data.token }));
       toast.success(data.message || `Welcome back, ${data.user.name}!`);
 
-      if (data.user.role === 'admin') {
-        navigate('/dashboard/admin');
-      } else if (data.user.role === 'superadmin') {
+      if (data.user.role === 'superadmin') {
         navigate('/dashboard/superadmin');
+      } else if (data.user.role === 'admin') {
+        navigate('/dashboard/admin');
+      } else if (data.user.role === 'vendor') {
+        navigate('/dashboard/vendor');
       } else {
         navigate('/dashboard/user');
       }

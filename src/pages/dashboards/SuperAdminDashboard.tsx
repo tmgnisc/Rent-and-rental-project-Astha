@@ -1,10 +1,39 @@
 import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { RootState } from '@/store/store';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarTrigger,
+} from '@/components/ui/sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Users, Package, DollarSign, Shield, TrendingUp, AlertTriangle } from 'lucide-react';
+import {
+  Users,
+  Package,
+  DollarSign,
+  Shield,
+  TrendingUp,
+  AlertTriangle,
+  LayoutDashboard,
+  CheckCircle,
+  List,
+  BarChart3,
+  Settings,
+  Home,
+  UserCheck,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { apiRequest } from '@/lib/api';
 
@@ -19,9 +48,13 @@ type PendingVendor = {
 
 const SuperAdminDashboard = () => {
   const { user, token } = useSelector((state: RootState) => state.auth);
+  const navigate = useNavigate();
   const [pendingVendors, setPendingVendors] = useState<PendingVendor[]>([]);
   const [loadingVendors, setLoadingVendors] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [activeView, setActiveView] = useState<
+    'overview' | 'vendor-approvals' | 'all-users' | 'all-products' | 'all-vendors' | 'disputes' | 'analytics' | 'settings'
+  >('overview');
 
   useEffect(() => {
     if (user?.role === 'superadmin' && token) {
@@ -75,13 +108,15 @@ const SuperAdminDashboard = () => {
     { id: 'd2', user: 'Jane Smith', vendor: 'Camera World', product: 'Sony A7 IV', status: 'resolved' },
   ];
 
-  return (
-    <div className="min-h-screen bg-muted/30">
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Super Admin Dashboard</h1>
-          <p className="text-muted-foreground">Platform overview and management</p>
-        </div>
+  const renderContent = () => {
+    switch (activeView) {
+      case 'overview':
+        return (
+          <>
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold mb-2">Super Admin Dashboard</h1>
+              <p className="text-muted-foreground">Platform overview and management</p>
+            </div>
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -236,8 +271,382 @@ const SuperAdminDashboard = () => {
             </div>
           </CardContent>
         </Card>
+          </>
+        );
+
+      case 'vendor-approvals':
+        return (
+          <>
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold mb-2">Vendor Approvals</h1>
+              <p className="text-muted-foreground">Review and verify new vendor applications</p>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Pending Vendor Approvals</CardTitle>
+                    <CardDescription>Review and verify new vendors</CardDescription>
+                  </div>
+                  <Badge variant="secondary">{pendingVendors.length}</Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loadingVendors ? (
+                  <p className="text-sm text-muted-foreground">Loading pending vendors...</p>
+                ) : pendingVendors.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No pending vendor applications.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {pendingVendors.map((vendor) => (
+                      <div
+                        key={vendor.id}
+                        className="flex flex-col gap-3 border rounded-lg p-4 md:flex-row md:items-center md:justify-between"
+                      >
+                        <div>
+                          <h3 className="font-semibold">{vendor.name}</h3>
+                          <p className="text-sm text-muted-foreground">{vendor.email}</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Applied on {new Date(vendor.createdAt).toLocaleDateString()}
+                          </p>
+                          {vendor.vendorDocumentUrl && (
+                            <a
+                              href={vendor.vendorDocumentUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-xs font-medium text-primary hover:underline"
+                            >
+                              View Document
+                            </a>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={actionLoading === `${vendor.id}-rejected`}
+                            onClick={() => handleVerify(vendor.id, 'rejected')}
+                          >
+                            {actionLoading === `${vendor.id}-rejected` ? 'Rejecting...' : 'Reject'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            disabled={actionLoading === `${vendor.id}-approved`}
+                            onClick={() => handleVerify(vendor.id, 'approved')}
+                          >
+                            {actionLoading === `${vendor.id}-approved` ? 'Approving...' : 'Approve'}
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </>
+        );
+
+      case 'all-users':
+        return (
+          <>
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold mb-2">All Users</h1>
+              <p className="text-muted-foreground">Manage all platform users</p>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>User Management</CardTitle>
+                <CardDescription>View and manage all registered users</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">User list will be implemented here</p>
+              </CardContent>
+            </Card>
+          </>
+        );
+
+      case 'all-products':
+        return (
+          <>
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold mb-2">All Products</h1>
+              <p className="text-muted-foreground">View and manage all products across the platform</p>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Product Management</CardTitle>
+                <CardDescription>All products listed by vendors</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">Product list will be implemented here</p>
+              </CardContent>
+            </Card>
+          </>
+        );
+
+      case 'all-vendors':
+        return (
+          <>
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold mb-2">All Vendors</h1>
+              <p className="text-muted-foreground">Manage all vendor accounts</p>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Vendor Management</CardTitle>
+                <CardDescription>View and manage all vendor accounts</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">Vendor list will be implemented here</p>
+              </CardContent>
+            </Card>
+          </>
+        );
+
+      case 'disputes':
+        return (
+          <>
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold mb-2">Disputes</h1>
+              <p className="text-muted-foreground">Handle escalated issues and disputes</p>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Recent Disputes</CardTitle>
+                    <CardDescription>Handle escalated issues</CardDescription>
+                  </div>
+                  <Button variant="outline">View All</Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {recentDisputes.map((dispute) => (
+                    <div
+                      key={dispute.id}
+                      className="flex items-start justify-between p-4 border rounded-lg"
+                    >
+                      <div className="flex gap-3">
+                        <AlertTriangle className="h-5 w-5 text-warning mt-0.5" />
+                        <div>
+                          <p className="font-medium">{dispute.product}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {dispute.user} vs {dispute.vendor}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge variant={dispute.status === 'open' ? 'default' : 'secondary'}>
+                        {dispute.status}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        );
+
+      case 'analytics':
+        return (
+          <>
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold mb-2">Platform Analytics</h1>
+              <p className="text-muted-foreground">Key metrics and insights</p>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  Platform Analytics
+                </CardTitle>
+                <CardDescription>Key metrics and insights</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                  <div>
+                    <p className="text-2xl font-bold text-primary">98.5%</p>
+                    <p className="text-sm text-muted-foreground">Platform Uptime</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-primary">4.8</p>
+                    <p className="text-sm text-muted-foreground">Avg Rating</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-primary">89%</p>
+                    <p className="text-sm text-muted-foreground">Completion Rate</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-primary">5.2k</p>
+                    <p className="text-sm text-muted-foreground">Total Rentals</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        );
+
+      case 'settings':
+        return (
+          <>
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold mb-2">Settings</h1>
+              <p className="text-muted-foreground">Platform configuration and preferences</p>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Platform Settings</CardTitle>
+                <CardDescription>Configure platform-wide settings</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">Settings form will be implemented here</p>
+              </CardContent>
+            </Card>
+          </>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <SidebarProvider>
+      <div className="flex min-h-screen w-full">
+        <Sidebar>
+          <SidebarHeader>
+            <div className="flex items-center gap-2 px-2 py-1.5">
+              <Shield className="h-6 w-6 text-primary" />
+              <span className="font-bold text-lg">Super Admin</span>
+            </div>
+          </SidebarHeader>
+          <SidebarContent>
+            <SidebarGroup>
+              <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => setActiveView('overview')}
+                    isActive={activeView === 'overview'}
+                  >
+                    <LayoutDashboard className="h-4 w-4" />
+                    <span>Overview</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => setActiveView('vendor-approvals')}
+                    isActive={activeView === 'vendor-approvals'}
+                  >
+                    <CheckCircle className="h-4 w-4" />
+                    <span>Vendor Approvals</span>
+                    {pendingVendors.length > 0 && (
+                      <Badge variant="secondary" className="ml-auto">
+                        {pendingVendors.length}
+                      </Badge>
+                    )}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroup>
+
+            <SidebarGroup>
+              <SidebarGroupLabel>Management</SidebarGroupLabel>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => setActiveView('all-users')}
+                    isActive={activeView === 'all-users'}
+                  >
+                    <Users className="h-4 w-4" />
+                    <span>All Users</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => setActiveView('all-vendors')}
+                    isActive={activeView === 'all-vendors'}
+                  >
+                    <UserCheck className="h-4 w-4" />
+                    <span>All Vendors</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => setActiveView('all-products')}
+                    isActive={activeView === 'all-products'}
+                  >
+                    <Package className="h-4 w-4" />
+                    <span>All Products</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => setActiveView('disputes')}
+                    isActive={activeView === 'disputes'}
+                  >
+                    <AlertTriangle className="h-4 w-4" />
+                    <span>Disputes</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroup>
+
+            <SidebarGroup>
+              <SidebarGroupLabel>Reports</SidebarGroupLabel>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => setActiveView('analytics')}
+                    isActive={activeView === 'analytics'}
+                  >
+                    <BarChart3 className="h-4 w-4" />
+                    <span>Analytics</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => setActiveView('settings')}
+                    isActive={activeView === 'settings'}
+                  >
+                    <Settings className="h-4 w-4" />
+                    <span>Settings</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroup>
+
+            <SidebarGroup>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton onClick={() => navigate('/')}>
+                    <Home className="h-4 w-4" />
+                    <span>Back to Home</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroup>
+          </SidebarContent>
+        </Sidebar>
+
+        <SidebarInset>
+          <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+            <SidebarTrigger className="-ml-1" />
+            <div className="flex-1" />
+          </header>
+          <div className="flex flex-1 flex-col gap-4 p-4 md:p-8 bg-muted/30">
+            {renderContent()}
+          </div>
+        </SidebarInset>
       </div>
-    </div>
+    </SidebarProvider>
   );
 };
 
