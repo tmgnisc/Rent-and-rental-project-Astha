@@ -32,14 +32,20 @@ const createProduct = async (req, res, next) => {
       ]
     );
 
-    // MySQL2 returns [result, fields] where result has insertId
-    const insertId = Array.isArray(result) ? result[0]?.insertId : result.insertId;
-    const [rows] = await connection.query(
-      `SELECT * FROM products WHERE id = ? LIMIT 1`,
-      [insertId]
+    // Since we're using UUID() in MySQL, we need to get the generated UUID
+    // Query by vendor_id, name, and most recent created_at to get the newly created product
+    const [newProductRows] = await connection.query(
+      `SELECT * FROM products 
+       WHERE vendor_id = ? AND name = ? 
+       ORDER BY created_at DESC LIMIT 1`,
+      [vendorId, value.name.trim()]
     );
 
-    const product = mapProductRecord(rows[0]);
+    if (newProductRows.length === 0) {
+      throw new ApiError(500, 'Failed to retrieve created product');
+    }
+
+    const product = mapProductRecord(newProductRows[0]);
 
     res.status(201).json({
       success: true,

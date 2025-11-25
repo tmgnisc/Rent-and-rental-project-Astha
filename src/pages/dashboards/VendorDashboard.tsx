@@ -1,7 +1,21 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { RootState } from '@/store/store';
+import { Product, ProductCategory } from '@/store/slices/productsSlice';
+import { apiRequest } from '@/lib/api';
+import { toast } from 'sonner';
+import ProductForm from '@/components/ProductForm';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Sidebar,
   SidebarContent,
@@ -32,21 +46,129 @@ import {
 } from 'lucide-react';
 
 const VendorDashboard = () => {
-  const { user } = useSelector((state: RootState) => state.auth);
+  const { user, token } = useSelector((state: RootState) => state.auth);
   const navigate = useNavigate();
   const [activeView, setActiveView] = useState<'overview' | 'products' | 'add-product' | 'analytics' | 'settings'>('overview');
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [deleteProductId, setDeleteProductId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if ((activeView === 'products' || activeView === 'overview') && token) {
+      fetchProducts();
+    }
+  }, [activeView, token]);
+
+  const fetchProducts = async () => {
+    if (!token) return;
+    setLoading(true);
+    try {
+      const data = await apiRequest<{ success: boolean; products: Product[] }>('/products', {
+        token,
+      });
+      setProducts(data.products);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to load products');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateProduct = async (formData: {
+    name: string;
+    description: string;
+    category: ProductCategory;
+    image_url: string;
+    rental_price_per_day: number;
+    refundable_deposit: number;
+    status: 'available' | 'rented' | 'maintenance';
+    specifications: Record<string, string> | null;
+  }) => {
+    if (!token) return;
+    setLoading(true);
+    try {
+      await apiRequest<{ success: boolean; message: string; product: Product }>('/products', {
+        method: 'POST',
+        body: formData,
+        token,
+      });
+      toast.success('Product created successfully!');
+      setActiveView('products');
+      setEditingProduct(null);
+      await fetchProducts();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to create product');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateProduct = async (formData: {
+    name: string;
+    description: string;
+    category: ProductCategory;
+    image_url: string;
+    rental_price_per_day: number;
+    refundable_deposit: number;
+    status: 'available' | 'rented' | 'maintenance';
+    specifications: Record<string, string> | null;
+  }) => {
+    if (!token || !editingProduct) return;
+    setLoading(true);
+    try {
+      await apiRequest<{ success: boolean; message: string; product: Product }>(
+        `/products/${editingProduct.id}`,
+        {
+          method: 'PUT',
+          body: formData,
+          token,
+        }
+      );
+      toast.success('Product updated successfully!');
+      setActiveView('products');
+      setEditingProduct(null);
+      await fetchProducts();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update product');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteProduct = async () => {
+    if (!token || !deleteProductId) return;
+    setLoading(true);
+    try {
+      await apiRequest<{ success: boolean; message: string }>(`/products/${deleteProductId}`, {
+        method: 'DELETE',
+        token,
+      });
+      toast.success('Product deleted successfully!');
+      setDeleteProductId(null);
+      await fetchProducts();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete product');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditClick = (product: Product) => {
+    setEditingProduct(product);
+    setActiveView('add-product');
+  };
+
+  const handleAddClick = () => {
+    setEditingProduct(null);
+    setActiveView('add-product');
+  };
 
   const stats = [
-    { label: 'Total Products', value: '24', icon: Package, change: '+3 this month' },
-    { label: 'Active Rentals', value: '18', icon: BarChart3, change: '+5 this week' },
-    { label: 'Revenue', value: '₹45,200', icon: Package, change: '+12% this month' },
-    { label: 'Rating', value: '4.8', icon: BarChart3, change: 'Based on 120 reviews' },
-  ];
-
-  const mockProducts = [
-    { id: '1', name: 'MacBook Pro 16"', category: 'Electronics', status: 'available', rentals: 12 },
-    { id: '2', name: 'Sony A7 IV Camera', category: 'Electronics', status: 'rented', rentals: 8 },
-    { id: '3', name: 'Designer Suit', category: 'Fashion', status: 'available', rentals: 15 },
+    { label: 'Total Products', value: products.length.toString(), icon: Package, change: `${products.filter(p => p.status === 'available').length} available` },
+    { label: 'Active Rentals', value: products.filter(p => p.status === 'rented').length.toString(), icon: BarChart3, change: 'Currently rented' },
+    { label: 'Revenue', value: '₹0', icon: Package, change: 'This month' },
+    { label: 'Rating', value: '0', icon: BarChart3, change: 'Based on reviews' },
   ];
 
   const renderContent = () => {
@@ -79,11 +201,38 @@ const VendorDashboard = () => {
 
             <Card>
               <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>Your latest product updates and rentals</CardDescription>
+                <CardTitle>Recent Products</CardTitle>
+                <CardDescription>Your latest products</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground">No recent activity</p>
+                {loading ? (
+                  <p className="text-sm text-muted-foreground">Loading...</p>
+                ) : products.length === 0 ? (
+                  <div className="text-center py-4">
+                    <p className="text-sm text-muted-foreground mb-4">No products yet</p>
+                    <Button onClick={handleAddClick} size="sm" className="gap-2">
+                      <Plus className="h-4 w-4" />
+                      Add Your First Product
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {products.slice(0, 5).map((product) => (
+                      <div
+                        key={product.id}
+                        className="flex items-center justify-between p-3 border rounded-lg"
+                      >
+                        <div>
+                          <p className="font-medium text-sm">{product.name}</p>
+                          <p className="text-xs text-muted-foreground capitalize">{product.category}</p>
+                        </div>
+                        <Badge variant={product.status === 'available' ? 'default' : 'secondary'}>
+                          {product.status}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </>
@@ -97,7 +246,7 @@ const VendorDashboard = () => {
                 <h1 className="text-3xl font-bold mb-2">My Products</h1>
                 <p className="text-muted-foreground">Manage your rental inventory</p>
               </div>
-              <Button onClick={() => setActiveView('add-product')} className="gap-2">
+              <Button onClick={handleAddClick} className="gap-2">
                 <Plus className="h-4 w-4" />
                 Add Product
               </Button>
@@ -109,38 +258,70 @@ const VendorDashboard = () => {
                 <CardDescription>All your listed products</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {mockProducts.map((product) => (
-                    <div
-                      key={product.id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                    >
-                      <div>
-                        <h3 className="font-semibold">{product.name}</h3>
-                        <p className="text-sm text-muted-foreground">{product.category}</p>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <p className="text-sm font-medium">{product.rentals} rentals</p>
-                          <Badge
-                            variant={product.status === 'available' ? 'default' : 'secondary'}
-                            className="mt-1"
-                          >
-                            {product.status}
-                          </Badge>
+                {loading ? (
+                  <p className="text-sm text-muted-foreground">Loading products...</p>
+                ) : products.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground mb-4">No products yet</p>
+                    <Button onClick={handleAddClick} className="gap-2">
+                      <Plus className="h-4 w-4" />
+                      Add Your First Product
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {products.map((product) => (
+                      <div
+                        key={product.id}
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-4 flex-1">
+                          {product.image && (
+                            <img
+                              src={product.image}
+                              alt={product.name}
+                              className="w-16 h-16 object-cover rounded-lg"
+                            />
+                          )}
+                          <div className="flex-1">
+                            <h3 className="font-semibold">{product.name}</h3>
+                            <p className="text-sm text-muted-foreground capitalize">{product.category}</p>
+                            <p className="text-sm font-medium text-primary mt-1">
+                              ₹{product.rentalPricePerDay}/day
+                            </p>
+                          </div>
                         </div>
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="outline">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button size="sm" variant="outline" className="text-destructive">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <Badge
+                              variant={product.status === 'available' ? 'default' : 'secondary'}
+                              className="mt-1"
+                            >
+                              {product.status}
+                            </Badge>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleEditClick(product)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-destructive"
+                              onClick={() => setDeleteProductId(product.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </>
@@ -150,19 +331,23 @@ const VendorDashboard = () => {
         return (
           <>
             <div className="mb-8">
-              <h1 className="text-3xl font-bold mb-2">Add New Product</h1>
-              <p className="text-muted-foreground">List a new product for rent</p>
+              <h1 className="text-3xl font-bold mb-2">
+                {editingProduct ? 'Edit Product' : 'Add New Product'}
+              </h1>
+              <p className="text-muted-foreground">
+                {editingProduct ? 'Update product information' : 'List a new product for rent'}
+              </p>
             </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Product Information</CardTitle>
-                <CardDescription>Fill in the details of your product</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">Product form will be implemented here</p>
-              </CardContent>
-            </Card>
+            <ProductForm
+              product={editingProduct}
+              onSubmit={editingProduct ? handleUpdateProduct : handleCreateProduct}
+              onCancel={() => {
+                setEditingProduct(null);
+                setActiveView('products');
+              }}
+              loading={loading}
+            />
           </>
         );
 
@@ -245,7 +430,7 @@ const VendorDashboard = () => {
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton
-                    onClick={() => setActiveView('add-product')}
+                    onClick={handleAddClick}
                     isActive={activeView === 'add-product'}
                   >
                     <Plus className="h-4 w-4" />
@@ -301,6 +486,27 @@ const VendorDashboard = () => {
             {renderContent()}
           </div>
         </SidebarInset>
+
+        <AlertDialog open={!!deleteProductId} onOpenChange={(open) => !open && setDeleteProductId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Product</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this product? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteProduct}
+                disabled={loading}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {loading ? 'Deleting...' : 'Delete'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </SidebarProvider>
   );
