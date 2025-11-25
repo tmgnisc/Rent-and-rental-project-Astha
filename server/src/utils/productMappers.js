@@ -12,7 +12,11 @@ const mapProductRecord = (record) => ({
     name: record.vendor_name || '',
     rating: record.vendor_rating ? Number(record.vendor_rating) : 0,
   },
-  specifications: record.specifications ? (typeof record.specifications === 'string' ? JSON.parse(record.specifications) : record.specifications) : {},
+  specifications: record.specifications 
+    ? (typeof record.specifications === 'string' 
+        ? (record.specifications.trim() ? JSON.parse(record.specifications) : {}) 
+        : record.specifications)
+    : {},
   createdAt: record.created_at,
   updatedAt: record.updated_at,
 });

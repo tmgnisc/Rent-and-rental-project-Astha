@@ -14,11 +14,15 @@ const createProduct = async (req, res, next) => {
     const vendorId = req.user.id;
     const vendorName = req.user.name;
 
+    const specificationsJson = value.specifications 
+      ? JSON.stringify(value.specifications) 
+      : null;
+
     const [result] = await connection.query(
       `INSERT INTO products (
         name, description, category, image_url, rental_price_per_day,
-        refundable_deposit, status, vendor_id, vendor_name, vendor_rating
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+        refundable_deposit, status, vendor_id, vendor_name, vendor_rating, specifications
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
       [
         value.name.trim(),
         value.description?.trim() || '',
@@ -29,6 +33,7 @@ const createProduct = async (req, res, next) => {
         value.status || 'available',
         vendorId,
         vendorName,
+        specificationsJson,
       ]
     );
 
@@ -119,11 +124,15 @@ const updateProduct = async (req, res, next) => {
       throw new ApiError(404, 'Product not found');
     }
 
+    const specificationsJson = value.specifications 
+      ? JSON.stringify(value.specifications) 
+      : null;
+
     await pool.query(
       `UPDATE products SET
         name = ?, description = ?, category = ?, image_url = ?,
         rental_price_per_day = ?, refundable_deposit = ?, status = ?,
-        updated_at = CURRENT_TIMESTAMP
+        specifications = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ? AND vendor_id = ?`,
       [
         value.name.trim(),
@@ -133,6 +142,7 @@ const updateProduct = async (req, res, next) => {
         value.rental_price_per_day,
         value.refundable_deposit,
         value.status || 'available',
+        specificationsJson,
         id,
         vendorId,
       ]

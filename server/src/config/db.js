@@ -47,6 +47,7 @@ const createProductsTable = `
     vendor_id CHAR(36),
     vendor_name VARCHAR(160),
     vendor_rating DECIMAL(3,2) DEFAULT 0,
+    specifications JSON,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_products_category (category),
@@ -83,6 +84,29 @@ const createRentalsTable = `
     INDEX idx_rentals_status (status)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 `;
+
+const migrateProductsTable = async (connection) => {
+  try {
+    // Check if specifications column exists
+    const [columns] = await connection.query(
+      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
+       WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'products' AND COLUMN_NAME = 'specifications'`,
+      [db.database]
+    );
+
+    if (columns.length === 0) {
+      await connection.query(`
+        ALTER TABLE products
+        ADD COLUMN specifications JSON AFTER vendor_rating
+      `);
+      // eslint-disable-next-line no-console
+      console.info('✅ Migrated products table: Added specifications column');
+    }
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.warn('⚠️  Products migration warning:', error.message);
+  }
+};
 
 const migrateUsersTable = async (connection) => {
   try {
@@ -192,6 +216,7 @@ const initDatabase = async () => {
     await connection.query(createProductImagesTable);
     await connection.query(createRentalsTable);
     await migrateUsersTable(connection);
+    await migrateProductsTable(connection);
     await seedSuperAdmin(connection);
     // eslint-disable-next-line no-console
     console.info('✅ Database tables are ready.');
