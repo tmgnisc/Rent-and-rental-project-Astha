@@ -1,14 +1,6 @@
+const fs = require('fs');
 const path = require('path');
 const dotenv = require('dotenv');
-
-// Load .env from the correct path
-const envPath = path.join(__dirname, '../../.env');
-const result = dotenv.config({ path: envPath });
-
-if (result.error) {
-  console.warn('⚠️  No .env file found for backend configuration.');
-  console.warn('Looking for .env at:', envPath);
-}
 
 const requiredVars = [
   'DB_HOST',
@@ -20,6 +12,33 @@ const requiredVars = [
   'CLOUDINARY_API_KEY',
   'CLOUDINARY_API_SECRET',
 ];
+
+const candidatePaths = [
+  path.join(__dirname, '../../.env'), // server/.env
+  path.join(__dirname, '../../../.env'), // project-root/.env
+];
+
+let loadedEnvPath = null;
+
+for (const candidate of candidatePaths) {
+  if (!fs.existsSync(candidate)) {
+    continue;
+  }
+  dotenv.config({ path: candidate, override: true });
+  const missingAfterLoad = requiredVars.filter((key) => !process.env[key]);
+  if (missingAfterLoad.length === 0) {
+    loadedEnvPath = candidate;
+    break;
+  }
+}
+
+if (loadedEnvPath) {
+  // eslint-disable-next-line no-console
+  console.info(`[env] Loaded configuration from ${path.relative(process.cwd(), loadedEnvPath)}`);
+} else {
+  // eslint-disable-next-line no-console
+  console.warn('⚠️  .env file missing required values. Ensure either server/.env or project .env is populated.');
+}
 
 // Check which variables are missing
 const missingVars = requiredVars.filter((key) => !process.env[key]);
