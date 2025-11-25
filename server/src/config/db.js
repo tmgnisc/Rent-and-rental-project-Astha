@@ -84,6 +84,84 @@ const createRentalsTable = `
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 `;
 
+const migrateUsersTable = async (connection) => {
+  try {
+    // First, update the role ENUM to include 'vendor' if it doesn't already
+    try {
+      await connection.query(`
+        ALTER TABLE users 
+        MODIFY COLUMN role ENUM('user','vendor','admin','superadmin') NOT NULL DEFAULT 'user'
+      `);
+      // eslint-disable-next-line no-console
+      console.info('✅ Updated role ENUM to include vendor');
+    } catch (err) {
+      // ENUM might already be correct, continue
+    }
+
+    // Check if vendor_document_url column exists
+    const [columns] = await connection.query(
+      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
+       WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'users' AND COLUMN_NAME = 'vendor_document_url'`,
+      [db.database]
+    );
+
+    if (columns.length === 0) {
+      // Add missing vendor-related columns one by one to handle errors gracefully
+      try {
+        await connection.query(`
+          ALTER TABLE users
+          ADD COLUMN vendor_document_url VARCHAR(500) AFTER is_verified
+        `);
+      } catch (err) {
+        // Column might already exist, continue
+      }
+
+      try {
+        await connection.query(`
+          ALTER TABLE users
+          ADD COLUMN verification_status ENUM('pending','approved','rejected') DEFAULT 'approved' AFTER vendor_document_url
+        `);
+      } catch (err) {
+        // Column might already exist, continue
+      }
+
+      try {
+        await connection.query(`
+          ALTER TABLE users
+          ADD COLUMN document_verified_by CHAR(36) AFTER verification_status
+        `);
+      } catch (err) {
+        // Column might already exist, continue
+      }
+
+      // Check if foreign key constraint exists before adding
+      const [constraints] = await connection.query(
+        `SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS 
+         WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'users' AND CONSTRAINT_NAME = 'fk_document_verified_by'`,
+        [db.database]
+      );
+
+      if (constraints.length === 0) {
+        try {
+          await connection.query(`
+            ALTER TABLE users
+            ADD CONSTRAINT fk_document_verified_by 
+            FOREIGN KEY (document_verified_by) REFERENCES users(id) ON DELETE SET NULL
+          `);
+        } catch (err) {
+          // Foreign key might fail if there are existing records, ignore
+        }
+      }
+
+      // eslint-disable-next-line no-console
+      console.info('✅ Migrated users table: Added vendor-related columns');
+    }
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.warn('⚠️  Migration warning:', error.message);
+  }
+};
+
 const seedSuperAdmin = async (connection) => {
   const [existing] = await connection.query(
     "SELECT id FROM users WHERE role = 'superadmin' LIMIT 1"
@@ -113,6 +191,7 @@ const initDatabase = async () => {
     await connection.query(createProductsTable);
     await connection.query(createProductImagesTable);
     await connection.query(createRentalsTable);
+    await migrateUsersTable(connection);
     await seedSuperAdmin(connection);
     // eslint-disable-next-line no-console
     console.info('✅ Database tables are ready.');
