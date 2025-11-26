@@ -287,6 +287,7 @@ const UserDashboard = () => {
   ];
 
   return (
+    <>
     <div className="min-h-screen bg-muted/30">
       <div className="container mx-auto px-4 py-8">
         {/* Welcome Section */}
@@ -516,7 +517,16 @@ const UserDashboard = () => {
       </div>
     </div>
 
-      <Dialog open={returnModalOpen} onOpenChange={(open) => (open ? setReturnModalOpen(true) : closeReturnModal())}>
+      <Dialog
+        open={returnModalOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeReturnModal();
+          } else {
+            setReturnModalOpen(true);
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Request Return</DialogTitle>
@@ -574,6 +584,7 @@ const UserDashboard = () => {
           )}
         </DialogContent>
       </Dialog>
+    </>
   );
 };
 
