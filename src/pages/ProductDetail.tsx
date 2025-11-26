@@ -23,7 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Elements } from '@stripe/react-stripe-js';
-import { stripePromise } from '@/lib/stripe';
+import { publishableKey, stripePromise } from '@/lib/stripe';
 import RentalPaymentForm from '@/components/rent/RentalPaymentForm';
 
 type RentalFormState = {
@@ -179,6 +179,8 @@ useEffect(() => {
       toast.error(error instanceof Error ? error.message : 'Unable to confirm rental');
     }
   };
+
+  const stripeReady = Boolean(publishableKey);
 
   const rentalSummary = useMemo(() => {
     if (!product) {
@@ -451,6 +453,17 @@ useEffect(() => {
                   </Button>
                 </DialogFooter>
               </form>
+            </>
+          ) : !stripeReady ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>Stripe Not Configured</DialogTitle>
+                <DialogDescription>
+                  Add `VITE_STRIPE_PUBLISHABLE_KEY` to your frontend `.env` file and restart the dev
+                  server to enable card payments.
+                </DialogDescription>
+              </DialogHeader>
+              <Button onClick={() => setClientSecret(null)}>Go Back</Button>
             </>
           ) : (
             <>

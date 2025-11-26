@@ -1,3 +1,4 @@
+const { randomUUID } = require('crypto');
 const { pool } = require('../config/db');
 const { ApiError } = require('../middleware/errorHandler');
 const { rentalSchema, formatValidationError } = require('../validators/rentalValidator');
@@ -58,8 +59,11 @@ const createRental = async (req, res, next) => {
       },
     });
 
-    const [result] = await connection.query(
+    const rentalId = randomUUID();
+
+    await connection.query(
       `INSERT INTO rentals (
+        id,
         user_id,
         product_id,
         start_date,
@@ -69,8 +73,9 @@ const createRental = async (req, res, next) => {
         payment_intent_id,
         delivery_address,
         contact_phone
-      ) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)`,
       [
+        rentalId,
         req.user.id,
         payload.productId,
         startDate,
@@ -82,10 +87,9 @@ const createRental = async (req, res, next) => {
       ]
     );
 
-    const [rentalRows] = await connection.query(
-      `SELECT * FROM rentals WHERE id = ? LIMIT 1`,
-      [result.insertId]
-    );
+    const [rentalRows] = await connection.query(`SELECT * FROM rentals WHERE id = ? LIMIT 1`, [
+      rentalId,
+    ]);
 
     res.status(201).json({
       success: true,
