@@ -73,6 +73,21 @@ const createProductImagesTable = `
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 `;
 
+const createPasswordResetTokensTable = `
+  CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    id CHAR(36) NOT NULL PRIMARY KEY DEFAULT (UUID()),
+    user_id CHAR(36) NOT NULL,
+    token_hash CHAR(64) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    used_at DATETIME NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_password_reset_user FOREIGN KEY (user_id)
+      REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_password_reset_user (user_id),
+    INDEX idx_password_reset_expires (expires_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+`;
+
 const createRentalsTable = `
   CREATE TABLE IF NOT EXISTS rentals (
     id CHAR(36) NOT NULL PRIMARY KEY DEFAULT (UUID()),
@@ -331,6 +346,7 @@ const initDatabase = async () => {
     await connection.query(createUsersTable);
     await connection.query(createProductsTable);
     await connection.query(createProductImagesTable);
+    await connection.query(createPasswordResetTokensTable);
     await connection.query(createRentalsTable);
     await migrateUsersTable(connection);
     await migrateProductsTable(connection);

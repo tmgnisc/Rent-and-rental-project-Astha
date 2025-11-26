@@ -12,6 +12,9 @@ const requiredVars = [
   'CLOUDINARY_API_KEY',
   'CLOUDINARY_API_SECRET',
   'STRIPE_SECRET_KEY',
+  'EMAIL_USER',
+  'EMAIL_PASS',
+  'EMAIL_FROM',
 ];
 
 const candidatePaths = [
@@ -79,5 +82,10 @@ module.exports = {
   stripe: {
     secretKey: process.env.STRIPE_SECRET_KEY,
     currency: process.env.STRIPE_CURRENCY || 'usd',
+  },
+  email: {
+    from: process.env.EMAIL_FROM,
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
   },
 };
