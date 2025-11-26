@@ -337,6 +337,21 @@ const getPublicProductById = async (req, res, next) => {
   }
 };
 
+const getAllProducts = async (req, res, next) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT * FROM products ORDER BY created_at DESC`
+    );
+
+    res.json({
+      success: true,
+      products: rows.map(mapProductRecord),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   createProduct,
   getVendorProducts,
@@ -345,5 +360,6 @@ module.exports = {
   deleteProduct,
   getPublicProducts,
   getPublicProductById,
+  getAllProducts,
 };
 

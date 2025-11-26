@@ -144,9 +144,48 @@ const reviewKycStatus = async (req, res, next) => {
   }
 };
 
+const getAllUsers = async (req, res, next) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, name, email, role, is_verified, vendor_document_url, verification_status,
+              document_verified_by, kyc_document_url, kyc_status, kyc_verified_by, created_at, updated_at
+       FROM users
+       ORDER BY created_at DESC`
+    );
+
+    res.json({
+      success: true,
+      users: rows.map(mapUserRecord),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const getAllVendors = async (req, res, next) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, name, email, role, is_verified, vendor_document_url, verification_status,
+              document_verified_by, kyc_document_url, kyc_status, kyc_verified_by, created_at, updated_at
+       FROM users
+       WHERE role = 'vendor'
+       ORDER BY created_at DESC`
+    );
+
+    res.json({
+      success: true,
+      vendors: rows.map(mapUserRecord),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   uploadKycDocument,
   getKycStatus,
   getPendingKycUsers,
   reviewKycStatus,
+  getAllUsers,
+  getAllVendors,
 };

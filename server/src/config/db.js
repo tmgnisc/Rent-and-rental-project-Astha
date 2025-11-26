@@ -188,13 +188,13 @@ const migrateUsersTable = async (connection) => {
       console.info('✅ Migrated users table: Added vendor-related columns');
     }
 
-    const [kycColumn] = await connection.query(
+    const [kycDocumentColumn] = await connection.query(
       `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
        WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'users' AND COLUMN_NAME = 'kyc_document_url'`,
       [db.database]
     );
 
-    if (kycColumn.length === 0) {
+    if (kycDocumentColumn.length === 0) {
       try {
         await connection.query(`
           ALTER TABLE users
@@ -203,16 +203,24 @@ const migrateUsersTable = async (connection) => {
       } catch (err) {
         // ignore
       }
+    }
 
-      try {
-        await connection.query(`
-          ALTER TABLE users
-          ADD COLUMN kyc_status ENUM('unverified','pending','approved','rejected') DEFAULT 'unverified' AFTER kyc_document_url
-        `);
-      } catch (err) {
-        // ignore
-      }
+    try {
+      await connection.query(`
+        ALTER TABLE users
+        MODIFY COLUMN kyc_status ENUM('unverified','pending','approved','rejected') DEFAULT 'unverified'
+      `);
+    } catch (err) {
+      // ignore
+    }
 
+    const [kycVerifiedByColumn] = await connection.query(
+      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
+       WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'users' AND COLUMN_NAME = 'kyc_verified_by'`,
+      [db.database]
+    );
+
+    if (kycVerifiedByColumn.length === 0) {
       try {
         await connection.query(`
           ALTER TABLE users
@@ -233,7 +241,7 @@ const migrateUsersTable = async (connection) => {
       }
 
       // eslint-disable-next-line no-console
-      console.info('✅ Migrated users table: Added KYC columns');
+      console.info('✅ Migrated users table: Added KYC verification metadata');
     }
   } catch (error) {
     // eslint-disable-next-line no-console

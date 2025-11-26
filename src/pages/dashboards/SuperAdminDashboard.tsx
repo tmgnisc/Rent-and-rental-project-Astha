@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { RootState } from '@/store/store';
@@ -36,6 +36,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiRequest } from '@/lib/api';
+import ProductCard from '@/components/ProductCard';
+import { Product } from '@/store/slices/productsSlice';
 
 type PendingVendor = {
   id: string;
@@ -55,6 +57,17 @@ type PendingKycUser = {
   updatedAt: string;
 };
 
+type AdminUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  isVerified: boolean;
+  kycStatus?: 'unverified' | 'pending' | 'approved' | 'rejected' | null;
+  kycDocumentUrl?: string | null;
+  createdAt: string;
+};
+
 const SuperAdminDashboard = () => {
   const { user, token } = useSelector((state: RootState) => state.auth);
   const navigate = useNavigate();
@@ -67,14 +80,14 @@ const SuperAdminDashboard = () => {
   const [pendingKycUsers, setPendingKycUsers] = useState<PendingKycUser[]>([]);
   const [loadingKyc, setLoadingKyc] = useState(false);
   const [kycActionLoading, setKycActionLoading] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (user?.role === 'superadmin' && token) {
-      void fetchPendingVendors();
-      void fetchPendingKycUsers();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.role, token]);
+  const [allUsers, setAllUsers] = useState<AdminUser[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const vendorUsers = useMemo(
+    () => allUsers.filter((u) => u.role === 'vendor'),
+    [allUsers]
+  );
 
   const fetchPendingVendors = async () => {
     if (!token) return;
@@ -105,6 +118,46 @@ const SuperAdminDashboard = () => {
       setLoadingKyc(false);
     }
   };
+
+  const fetchAllUsers = async () => {
+    if (!token) return;
+    setLoadingUsers(true);
+    try {
+      const data = await apiRequest<{ success: boolean; users: AdminUser[] }>('/users/all', {
+        token,
+      });
+      setAllUsers(data.users);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to load users');
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const fetchAllProducts = async () => {
+    if (!token) return;
+    setLoadingProducts(true);
+    try {
+      const data = await apiRequest<{ success: boolean; products: Product[] }>('/admin/products', {
+        token,
+      });
+      setAllProducts(data.products);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to load products');
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user?.role === 'superadmin' && token) {
+      void fetchPendingVendors();
+      void fetchPendingKycUsers();
+      void fetchAllUsers();
+      void fetchAllProducts();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.role, token]);
 
   const handleVerify = async (vendorId: string, status: 'approved' | 'rejected') => {
     if (!token) return;
@@ -143,10 +196,10 @@ const SuperAdminDashboard = () => {
   };
 
   const stats = [
-    { label: 'Total Users', value: '1,234', icon: Users, change: '+89 this month' },
+    { label: 'Total Users', value: allUsers.length.toString(), icon: Users, change: '' },
     { label: 'Pending KYC', value: pendingKycUsers.length.toString(), icon: Shield, change: `${pendingKycUsers.length} awaiting approval` },
     { label: 'Pending Vendors', value: pendingVendors.length.toString(), icon: UserCheck, change: `${pendingVendors.length} awaiting review` },
-    { label: 'Total Products', value: '2,345', icon: Package, change: 'Across all vendors' },
+    { label: 'Total Products', value: allProducts.length.toString(), icon: Package, change: 'Across all vendors' },
     { label: 'Platform Revenue', value: '₹12.5L', icon: DollarSign, change: '+18% growth' },
   ];
 
@@ -565,7 +618,36 @@ const SuperAdminDashboard = () => {
                 <CardDescription>View and manage all registered users</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground">User list will be implemented here</p>
+                {loadingUsers ? (
+                  <p className="text-sm text-muted-foreground">Loading users...</p>
+                ) : allUsers.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No users found.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {allUsers.map((adminUser) => (
+                      <div
+                        key={adminUser.id}
+                        className="flex flex-col gap-2 border rounded-lg p-4 md:flex-row md:items-center md:justify-between"
+                      >
+                        <div>
+                          <h3 className="font-semibold">{adminUser.name}</h3>
+                          <p className="text-sm text-muted-foreground">{adminUser.email}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Role: <span className="font-medium capitalize">{adminUser.role}</span>
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Badge variant={adminUser.isVerified ? 'default' : 'secondary'}>
+                            {adminUser.isVerified ? 'Verified' : 'Unverified'}
+                          </Badge>
+                          <Badge variant="outline">
+                            KYC: {adminUser.kycStatus ? adminUser.kycStatus : 'unverified'}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </>
@@ -585,7 +667,17 @@ const SuperAdminDashboard = () => {
                 <CardDescription>All products listed by vendors</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground">Product list will be implemented here</p>
+                {loadingProducts ? (
+                  <p className="text-sm text-muted-foreground">Loading products...</p>
+                ) : allProducts.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No products found.</p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {allProducts.map((product) => (
+                      <ProductCard key={product.id} product={product} />
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </>
@@ -605,7 +697,36 @@ const SuperAdminDashboard = () => {
                 <CardDescription>View and manage all vendor accounts</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground">Vendor list will be implemented here</p>
+                {loadingUsers ? (
+                  <p className="text-sm text-muted-foreground">Loading vendors...</p>
+                ) : vendorUsers.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No vendors found.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {vendorUsers.map((vendor) => (
+                      <div
+                        key={vendor.id}
+                        className="flex flex-col gap-2 border rounded-lg p-4 md:flex-row md:items-center md:justify-between"
+                      >
+                        <div>
+                          <h3 className="font-semibold">{vendor.name}</h3>
+                          <p className="text-sm text-muted-foreground">{vendor.email}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Joined {new Date(vendor.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Badge variant={vendor.isVerified ? 'default' : 'secondary'}>
+                            {vendor.isVerified ? 'Verified' : 'Unverified'}
+                          </Badge>
+                          <Badge variant="outline">
+                            KYC: {vendor.kycStatus ? vendor.kycStatus : 'unverified'}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </>
