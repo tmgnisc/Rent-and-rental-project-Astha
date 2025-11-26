@@ -9,6 +9,7 @@ const {
   markRentalReturned,
   rejectRentalReturn,
   getReturnRequests,
+  getDisputeReturns,
 } = require('../controllers/rentalController');
 const { protect } = require('../middleware/authMiddleware');
 const { authorizeRoles } = require('../middleware/roleMiddleware');
@@ -28,6 +29,7 @@ router.patch('/:id/handover', authorizeRoles('vendor'), markRentalHandedOver);
 router.patch('/:id/return', authorizeRoles('vendor'), markRentalReturned);
 router.patch('/:id/return-reject', authorizeRoles('vendor'), rejectRentalReturn);
 router.get('/admin/returns', authorizeRoles('superadmin'), getReturnRequests);
+router.get('/admin/disputes', authorizeRoles('superadmin'), getDisputeReturns);
 
 module.exports = router;
 

@@ -118,6 +118,8 @@ const SuperAdminDashboard = () => {
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [returnRequests, setReturnRequests] = useState<ReturnRequest[]>([]);
   const [loadingReturns, setLoadingReturns] = useState(false);
+const [disputeReturns, setDisputeReturns] = useState<ReturnRequest[]>([]);
+const [loadingDisputes, setLoadingDisputes] = useState(false);
   const customerUsers = useMemo(
     () => allUsers.filter((u) => u.role === 'user'),
     [allUsers]
@@ -187,6 +189,21 @@ const fetchReturnRequests = useCallback(async () => {
   }
 }, [token]);
 
+const fetchDisputeReturns = useCallback(async () => {
+  if (!token) return;
+  setLoadingDisputes(true);
+  try {
+    const data = await apiRequest<{ success: boolean; disputes: ReturnRequest[] }>('/rentals/admin/disputes', {
+      token,
+    });
+    setDisputeReturns(data.disputes);
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : 'Failed to load disputes');
+  } finally {
+    setLoadingDisputes(false);
+  }
+}, [token]);
+
 const fetchAllProducts = async () => {
     if (!token) return;
     setLoadingProducts(true);
@@ -209,9 +226,10 @@ const fetchAllProducts = async () => {
       void fetchAllUsers();
       void fetchAllProducts();
       void fetchReturnRequests();
+      void fetchDisputeReturns();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.role, token, fetchReturnRequests]);
+  }, [user?.role, token, fetchReturnRequests, fetchDisputeReturns]);
 
   const handleVerify = async (vendorId: string, status: 'approved' | 'rejected') => {
     if (!token) return;
@@ -258,6 +276,7 @@ const fetchAllProducts = async () => {
     { label: 'Total Products', value: allProducts.length.toString(), icon: Package, change: 'Across all vendors' },
     { label: 'Platform Revenue', value: 'NPR 12.5L', icon: DollarSign, change: '+18% growth' },
     { label: 'Pending Returns', value: pendingReturnCount.toString(), icon: RotateCcw, change: 'Awaiting vendor review' },
+    { label: 'Active Disputes', value: disputeReturns.length.toString(), icon: AlertTriangle, change: 'Vendor rejections' },
   ];
 
   const recentDisputes = [
@@ -769,51 +788,6 @@ const fetchAllProducts = async () => {
           </>
         );
 
-      case 'disputes':
-        return (
-          <>
-            <div className="mb-8">
-              <h1 className="text-3xl font-bold mb-2">Disputes</h1>
-              <p className="text-muted-foreground">Handle escalated issues and disputes</p>
-            </div>
-
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Recent Disputes</CardTitle>
-                    <CardDescription>Handle escalated issues</CardDescription>
-                  </div>
-                  <Button variant="outline">View All</Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {recentDisputes.map((dispute) => (
-                    <div
-                      key={dispute.id}
-                      className="flex items-start justify-between p-4 border rounded-lg"
-                    >
-                      <div className="flex gap-3">
-                        <AlertTriangle className="h-5 w-5 text-warning mt-0.5" />
-                        <div>
-                          <p className="font-medium">{dispute.product}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {dispute.user} vs {dispute.vendor}
-                          </p>
-                        </div>
-                      </div>
-                      <Badge variant={dispute.status === 'open' ? 'default' : 'secondary'}>
-                        {dispute.status}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </>
-        );
-
       case 'return-requests':
         return (
           <>
@@ -892,6 +866,89 @@ const fetchAllProducts = async () => {
                           {request.returnRequestedAt && (
                             <p className="text-xs text-muted-foreground">
                               Requested on {new Date(request.returnRequestedAt).toLocaleDateString()}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </>
+        );
+
+      case 'disputes':
+        return (
+          <>
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold mb-2">Return Disputes</h1>
+              <p className="text-muted-foreground">
+                Vendors rejected these return requests. Review the evidence and feedback from both sides.
+              </p>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Vendor Rejections</CardTitle>
+                    <CardDescription>Use this log to intervene when required.</CardDescription>
+                  </div>
+                  <Badge variant="secondary">{disputeReturns.length}</Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loadingDisputes ? (
+                  <p className="text-sm text-muted-foreground">Loading disputes...</p>
+                ) : disputeReturns.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No disputes at the moment.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {disputeReturns.map((dispute) => (
+                      <div
+                        key={dispute.id}
+                        className="flex flex-col gap-3 border rounded-lg p-4 md:flex-row md:items-center md:justify-between"
+                      >
+                        <div className="space-y-1">
+                          <p className="font-semibold">{dispute.product?.name || 'Product'}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Customer: {dispute.customer?.name || dispute.customer?.email}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Vendor: {dispute.product?.vendorName || 'N/A'}
+                          </p>
+                          {dispute.returnRequestNote && (
+                            <p className="text-xs text-muted-foreground">
+                              Customer note: {dispute.returnRequestNote}
+                            </p>
+                          )}
+                          <p className="text-xs text-destructive">
+                            Vendor rejection: {dispute.returnRejectionReason || 'No reason provided'}
+                          </p>
+                          {dispute.returnRejectionNote && (
+                            <p className="text-xs text-destructive">
+                              Vendor note: {dispute.returnRejectionNote}
+                            </p>
+                          )}
+                          {dispute.returnRequestImage && (
+                            <a
+                              href={dispute.returnRequestImage}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-xs text-primary underline"
+                            >
+                              View customer photo
+                            </a>
+                          )}
+                        </div>
+                        <div className="text-right space-y-1">
+                          <Badge variant="destructive" className="capitalize">
+                            Rejected
+                          </Badge>
+                          {dispute.returnRequestedAt && (
+                            <p className="text-xs text-muted-foreground">
+                              Requested on {new Date(dispute.returnRequestedAt).toLocaleDateString()}
                             </p>
                           )}
                         </div>
@@ -1074,6 +1131,11 @@ const fetchAllProducts = async () => {
                   >
                     <AlertTriangle className="h-4 w-4" />
                     <span>Disputes</span>
+                    {disputeReturns.length > 0 && (
+                      <Badge variant="destructive" className="ml-auto">
+                        {disputeReturns.length}
+                      </Badge>
+                    )}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </SidebarMenu>

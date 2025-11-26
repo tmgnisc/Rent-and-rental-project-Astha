@@ -450,35 +450,59 @@ const markRentalReturned = async (req, res, next) => {
   }
 };
 
+const buildReturnsQuery = `
+  SELECT 
+    r.*,
+    p.name AS product_name,
+    p.image_url AS product_image,
+    p.category AS product_category,
+    p.vendor_name AS product_vendor_name,
+    u.name AS customer_name,
+    u.email AS customer_email,
+    v.name AS vendor_name_internal,
+    v.email AS vendor_email
+   FROM rentals r
+   INNER JOIN products p ON p.id = r.product_id
+   INNER JOIN users u ON u.id = r.user_id
+   INNER JOIN users v ON v.id = p.vendor_id
+`;
+
+const mapReturnRecords = (rows) =>
+  rows.map((record) =>
+    mapRentalRecord({
+      ...record,
+      vendor_name: record.vendor_name_internal || record.product_vendor_name,
+    })
+  );
+
 const getReturnRequests = async (req, res, next) => {
   try {
     const [rows] = await pool.query(
-      `SELECT 
-        r.*,
-        p.name AS product_name,
-        p.image_url AS product_image,
-        p.category AS product_category,
-        p.vendor_name AS product_vendor_name,
-        u.name AS customer_name,
-        u.email AS customer_email,
-        v.name AS vendor_name_internal,
-        v.email AS vendor_email
-       FROM rentals r
-       INNER JOIN products p ON p.id = r.product_id
-       INNER JOIN users u ON u.id = r.user_id
-       INNER JOIN users v ON v.id = p.vendor_id
+      `${buildReturnsQuery}
        WHERE r.return_request_status IN ('pending','approved','rejected')
        ORDER BY r.return_requested_at DESC`
     );
 
     res.json({
       success: true,
-      returns: rows.map((record) =>
-        mapRentalRecord({
-          ...record,
-          vendor_name: record.vendor_name_internal || record.product_vendor_name,
-        })
-      ),
+      returns: mapReturnRecords(rows),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const getDisputeReturns = async (req, res, next) => {
+  try {
+    const [rows] = await pool.query(
+      `${buildReturnsQuery}
+       WHERE r.return_request_status = 'rejected'
+       ORDER BY r.return_requested_at DESC`
+    );
+
+    res.json({
+      success: true,
+      disputes: mapReturnRecords(rows),
     });
   } catch (err) {
     next(err);
