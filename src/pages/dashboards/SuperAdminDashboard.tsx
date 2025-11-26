@@ -46,6 +46,15 @@ type PendingVendor = {
   createdAt: string;
 };
 
+type PendingKycUser = {
+  id: string;
+  name: string;
+  email: string;
+  kycDocumentUrl: string | null;
+  kycStatus: 'pending' | 'approved' | 'rejected' | 'unverified' | null;
+  updatedAt: string;
+};
+
 const SuperAdminDashboard = () => {
   const { user, token } = useSelector((state: RootState) => state.auth);
   const navigate = useNavigate();
@@ -53,12 +62,16 @@ const SuperAdminDashboard = () => {
   const [loadingVendors, setLoadingVendors] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<
-    'overview' | 'vendor-approvals' | 'all-users' | 'all-products' | 'all-vendors' | 'disputes' | 'analytics' | 'settings'
+    'overview' | 'vendor-approvals' | 'kyc-approvals' | 'all-users' | 'all-products' | 'all-vendors' | 'disputes' | 'analytics' | 'settings'
   >('overview');
+  const [pendingKycUsers, setPendingKycUsers] = useState<PendingKycUser[]>([]);
+  const [loadingKyc, setLoadingKyc] = useState(false);
+  const [kycActionLoading, setKycActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
     if (user?.role === 'superadmin' && token) {
       void fetchPendingVendors();
+      void fetchPendingKycUsers();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.role, token]);
@@ -75,6 +88,21 @@ const SuperAdminDashboard = () => {
       toast.error(error instanceof Error ? error.message : 'Failed to load vendors');
     } finally {
       setLoadingVendors(false);
+    }
+  };
+
+  const fetchPendingKycUsers = async () => {
+    if (!token) return;
+    setLoadingKyc(true);
+    try {
+      const data = await apiRequest<{ success: boolean; users: PendingKycUser[] }>('/users/kyc/pending', {
+        token,
+      });
+      setPendingKycUsers(data.users);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to load KYC submissions');
+    } finally {
+      setLoadingKyc(false);
     }
   };
 
@@ -96,9 +124,28 @@ const SuperAdminDashboard = () => {
     }
   };
 
+  const handleKycReview = async (userId: string, status: 'approved' | 'rejected') => {
+    if (!token) return;
+    setKycActionLoading(`${userId}-${status}`);
+    try {
+      const data = await apiRequest<{ success: boolean; message: string }>(`/users/kyc/${userId}`, {
+        method: 'PATCH',
+        body: { status },
+        token,
+      });
+      toast.success(data.message);
+      setPendingKycUsers((prev) => prev.filter((user) => user.id !== userId));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update KYC status');
+    } finally {
+      setKycActionLoading(null);
+    }
+  };
+
   const stats = [
     { label: 'Total Users', value: '1,234', icon: Users, change: '+89 this month' },
-    { label: 'Pending Vendors', value: pendingVendors.length.toString(), icon: Shield, change: `${pendingVendors.length} awaiting review` },
+    { label: 'Pending KYC', value: pendingKycUsers.length.toString(), icon: Shield, change: `${pendingKycUsers.length} awaiting approval` },
+    { label: 'Pending Vendors', value: pendingVendors.length.toString(), icon: UserCheck, change: `${pendingVendors.length} awaiting review` },
     { label: 'Total Products', value: '2,345', icon: Package, change: 'Across all vendors' },
     { label: 'Platform Revenue', value: '₹12.5L', icon: DollarSign, change: '+18% growth' },
   ];

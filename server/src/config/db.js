@@ -207,7 +207,26 @@ const migrateUsersTable = async (connection) => {
       try {
         await connection.query(`
           ALTER TABLE users
-          ADD COLUMN kyc_status ENUM('unverified','pending','approved') DEFAULT 'unverified' AFTER kyc_document_url
+          ADD COLUMN kyc_status ENUM('unverified','pending','approved','rejected') DEFAULT 'unverified' AFTER kyc_document_url
+        `);
+      } catch (err) {
+        // ignore
+      }
+
+      try {
+        await connection.query(`
+          ALTER TABLE users
+          ADD COLUMN kyc_verified_by CHAR(36) AFTER kyc_status
+        `);
+      } catch (err) {
+        // ignore
+      }
+
+      try {
+        await connection.query(`
+          ALTER TABLE users
+          ADD CONSTRAINT fk_kyc_verified_by FOREIGN KEY (kyc_verified_by)
+          REFERENCES users(id) ON DELETE SET NULL
         `);
       } catch (err) {
         // ignore
