@@ -45,6 +45,13 @@ const UserDashboard = () => {
   }, [fetchKycStatus]);
 
   useEffect(() => {
+    if (user) {
+      setKycStatus(user.kycStatus || 'unverified');
+      setKycDocumentUrl(user.kycDocumentUrl || null);
+    }
+  }, [user]);
+
+  useEffect(() => {
     return () => {
       if (objectUrlRef.current) {
         URL.revokeObjectURL(objectUrlRef.current);
@@ -163,6 +170,11 @@ const UserDashboard = () => {
                 <p className="text-sm text-muted-foreground">
                   Upload a clear photo of a government-issued ID (Aadhaar, Passport, Driver’s License). Supported formats: JPG, PNG. Max size 5MB.
                 </p>
+                {kycStatus === 'rejected' && (
+                  <p className="text-sm text-destructive">
+                    Previous submission was rejected. Please upload a new document.
+                  </p>
+                )}
                 <Input
                   type="file"
                   accept="image/*"

@@ -286,6 +286,70 @@ const SuperAdminDashboard = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* Pending KYC */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Pending KYC Approvals</CardTitle>
+                  <CardDescription>Verify customer identities</CardDescription>
+                </div>
+                <Badge variant="secondary">{pendingKycUsers.length}</Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loadingKyc ? (
+                <p className="text-sm text-muted-foreground">Loading pending KYC submissions...</p>
+              ) : pendingKycUsers.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No pending KYC submissions.</p>
+              ) : (
+                <div className="space-y-3">
+                  {pendingKycUsers.map((kycUser) => (
+                    <div
+                      key={kycUser.id}
+                      className="flex flex-col gap-3 border rounded-lg p-4 md:flex-row md:items-center md:justify-between"
+                    >
+                      <div>
+                        <h3 className="font-semibold">{kycUser.name}</h3>
+                        <p className="text-sm text-muted-foreground">{kycUser.email}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Submitted on {new Date(kycUser.updatedAt).toLocaleDateString()}
+                        </p>
+                        {kycUser.kycDocumentUrl && (
+                          <a
+                            href={kycUser.kycDocumentUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-xs font-medium text-primary hover:underline"
+                          >
+                            View Document
+                          </a>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={kycActionLoading === `${kycUser.id}-rejected`}
+                          onClick={() => handleKycReview(kycUser.id, 'rejected')}
+                        >
+                          {kycActionLoading === `${kycUser.id}-rejected` ? 'Rejecting...' : 'Reject'}
+                        </Button>
+                        <Button
+                          size="sm"
+                          disabled={kycActionLoading === `${kycUser.id}-approved`}
+                          onClick={() => handleKycReview(kycUser.id, 'approved')}
+                        >
+                          {kycActionLoading === `${kycUser.id}-approved` ? 'Approving...' : 'Approve'}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Platform Analytics */}
@@ -396,6 +460,79 @@ const SuperAdminDashboard = () => {
 
       case 'all-users':
         return (
+      case 'kyc-approvals':
+        return (
+          <>
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold mb-2">KYC Approvals</h1>
+              <p className="text-muted-foreground">Review and approve customer KYC submissions</p>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Pending KYC Submissions</CardTitle>
+                    <CardDescription>Verify customer identities before rentals</CardDescription>
+                  </div>
+                  <Badge variant="secondary">{pendingKycUsers.length}</Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loadingKyc ? (
+                  <p className="text-sm text-muted-foreground">Loading pending KYC submissions...</p>
+                ) : pendingKycUsers.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No pending KYC submissions.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {pendingKycUsers.map((kycUser) => (
+                      <div
+                        key={kycUser.id}
+                        className="flex flex-col gap-3 border rounded-lg p-4 md:flex-row md:items-center md:justify-between"
+                      >
+                        <div>
+                          <h3 className="font-semibold">{kycUser.name}</h3>
+                          <p className="text-sm text-muted-foreground">{kycUser.email}</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Submitted on {new Date(kycUser.updatedAt).toLocaleDateString()}
+                          </p>
+                          {kycUser.kycDocumentUrl && (
+                            <a
+                              href={kycUser.kycDocumentUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-xs font-medium text-primary hover:underline"
+                            >
+                              View Document
+                            </a>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={kycActionLoading === `${kycUser.id}-rejected`}
+                            onClick={() => handleKycReview(kycUser.id, 'rejected')}
+                          >
+                            {kycActionLoading === `${kycUser.id}-rejected` ? 'Rejecting...' : 'Reject'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            disabled={kycActionLoading === `${kycUser.id}-approved`}
+                            onClick={() => handleKycReview(kycUser.id, 'approved')}
+                          >
+                            {kycActionLoading === `${kycUser.id}-approved` ? 'Approving...' : 'Approve'}
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </>
+        );
+
           <>
             <div className="mb-8">
               <h1 className="text-3xl font-bold mb-2">All Users</h1>
@@ -597,6 +734,20 @@ const SuperAdminDashboard = () => {
                     {pendingVendors.length > 0 && (
                       <Badge variant="secondary" className="ml-auto">
                         {pendingVendors.length}
+                      </Badge>
+                    )}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => setActiveView('kyc-approvals')}
+                    isActive={activeView === 'kyc-approvals'}
+                  >
+                    <Shield className="h-4 w-4" />
+                    <span>KYC Approvals</span>
+                    {pendingKycUsers.length > 0 && (
+                      <Badge variant="secondary" className="ml-auto">
+                        {pendingKycUsers.length}
                       </Badge>
                     )}
                   </SidebarMenuButton>

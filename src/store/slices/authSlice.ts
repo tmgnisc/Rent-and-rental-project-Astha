@@ -12,7 +12,7 @@ export interface User {
   verificationStatus?: 'pending' | 'approved' | 'rejected' | null;
   documentVerifiedBy?: string | null;
   kycDocumentUrl?: string | null;
-  kycStatus?: 'unverified' | 'pending' | 'approved' | null;
+  kycStatus?: 'unverified' | 'pending' | 'approved' | 'rejected' | null;
   kycVerifiedBy?: string | null;
 }
 
