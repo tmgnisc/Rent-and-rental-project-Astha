@@ -19,6 +19,8 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Users,
   Package,
@@ -308,6 +310,33 @@ const fetchAllProducts = async () => {
     }
   };
 
+  const handlePasswordChangeSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!token) return;
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast.error('New passwords do not match');
+      return;
+    }
+
+    setPasswordSubmitting(true);
+    try {
+      await apiRequest('/auth/change-password', {
+        method: 'PATCH',
+        token,
+        body: {
+          currentPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword,
+        },
+      });
+      toast.success('Password updated successfully');
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update password');
+    } finally {
+      setPasswordSubmitting(false);
+    }
+  };
+
   const pendingReturnCount = returnRequests.filter((req) => req.returnRequestStatus === 'pending').length;
 
   const stats = [
@@ -364,12 +393,12 @@ const fetchAllProducts = async () => {
   const renderContent = () => {
     switch (activeView) {
       case 'overview':
-        return (
+  return (
           <>
-            <div className="mb-8">
-              <h1 className="text-3xl font-bold mb-2">Super Admin Dashboard</h1>
-              <p className="text-muted-foreground">Platform overview and management</p>
-            </div>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-2">Super Admin Dashboard</h1>
+          <p className="text-muted-foreground">Platform overview and management</p>
+        </div>
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -408,14 +437,14 @@ const fetchAllProducts = async () => {
               ) : pendingVendors.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No pending vendor applications.</p>
               ) : (
-                <div className="space-y-3">
-                  {pendingVendors.map((vendor) => (
-                    <div 
-                      key={vendor.id}
+              <div className="space-y-3">
+                {pendingVendors.map((vendor) => (
+                  <div 
+                    key={vendor.id}
                       className="flex flex-col gap-3 border rounded-lg p-4 md:flex-row md:items-center md:justify-between"
-                    >
-                      <div>
-                        <h3 className="font-semibold">{vendor.name}</h3>
+                  >
+                    <div>
+                      <h3 className="font-semibold">{vendor.name}</h3>
                         <p className="text-sm text-muted-foreground">{vendor.email}</p>
                         <p className="text-xs text-muted-foreground mt-1">
                           Applied on {new Date(vendor.createdAt).toLocaleDateString()}
@@ -430,8 +459,8 @@ const fetchAllProducts = async () => {
                             View Document
                           </a>
                         )}
-                      </div>
-                      <div className="flex gap-2">
+                    </div>
+                    <div className="flex gap-2">
                         <Button
                           size="sm"
                           variant="outline"
@@ -448,9 +477,9 @@ const fetchAllProducts = async () => {
                           {actionLoading === `${vendor.id}-approved` ? 'Approving...' : 'Approve'}
                         </Button>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                  </div>
+                ))}
+              </div>
               )}
             </CardContent>
           </Card>
@@ -463,12 +492,17 @@ const fetchAllProducts = async () => {
                   <CardTitle>Recent Disputes</CardTitle>
                   <CardDescription>Handle escalated issues</CardDescription>
                 </div>
-                <Button variant="outline">View All</Button>
+                <Button variant="outline" onClick={() => setActiveView('disputes')}>
+                  View All
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
+              {overviewDisputes.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No disputes in the last few days.</p>
+              ) : (
               <div className="space-y-3">
-                {recentDisputes.map((dispute) => (
+                  {overviewDisputes.map((dispute) => (
                   <div 
                     key={dispute.id}
                     className="flex items-start justify-between p-4 border rounded-lg"
@@ -476,20 +510,25 @@ const fetchAllProducts = async () => {
                     <div className="flex gap-3">
                       <AlertTriangle className="h-5 w-5 text-warning mt-0.5" />
                       <div>
-                        <p className="font-medium">{dispute.product}</p>
+                          <p className="font-medium">{dispute.product?.name || 'Product'}</p>
                         <p className="text-sm text-muted-foreground">
-                          {dispute.user} vs {dispute.vendor}
-                        </p>
+                            {dispute.customer?.name || dispute.customer?.email || 'Customer'} vs{' '}
+                            {dispute.product?.vendorName || 'Vendor'}
+                          </p>
+                          {dispute.returnRejectionReason && (
+                            <p className="text-xs text-muted-foreground">
+                              Reason: {dispute.returnRejectionReason}
+                            </p>
+                          )}
+                        </div>
                       </div>
+                      <Badge variant="destructive" className="capitalize">
+                        {dispute.returnRequestStatus}
+                      </Badge>
                     </div>
-                    <Badge 
-                      variant={dispute.status === 'open' ? 'default' : 'secondary'}
-                    >
-                      {dispute.status}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -550,9 +589,9 @@ const fetchAllProducts = async () => {
                           {kycActionLoading === `${kycUser.id}-approved` ? 'Approving...' : 'Approve'}
                         </Button>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                  </div>
+                ))}
+              </div>
               )}
             </CardContent>
           </Card>
@@ -1055,24 +1094,66 @@ const fetchAllProducts = async () => {
                 <CardDescription>Key metrics and insights</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                  <div>
-                    <p className="text-2xl font-bold text-primary">98.5%</p>
-                    <p className="text-sm text-muted-foreground">Platform Uptime</p>
+                {platformStatsLoading ? (
+                  <p className="text-sm text-muted-foreground">Loading analytics...</p>
+                ) : platformStats ? (
+                  <div className="space-y-8">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                      <div>
+                        <p className="text-2xl font-bold text-primary">{platformStats.totalRentals}</p>
+                        <p className="text-sm text-muted-foreground">Total Rentals</p>
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold text-primary">{platformStats.completedRentals}</p>
+                        <p className="text-sm text-muted-foreground">Completed Rentals</p>
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold text-primary">{platformStats.pendingRentals}</p>
+                        <p className="text-sm text-muted-foreground">Pending Rentals</p>
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold text-primary">
+                          NPR {platformStats.totalRevenue.toFixed(2)}
+                        </p>
+                        <p className="text-sm text-muted-foreground">Total Revenue</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-semibold">Recent Disputes</h3>
+                        <Button variant="ghost" size="sm" onClick={() => setActiveView('disputes')}>
+                          View All
+                        </Button>
+                      </div>
+                      {analyticsDisputes.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                          No disputes recorded in the latest analytics window.
+                        </p>
+                      ) : (
+                        <div className="space-y-3">
+                          {analyticsDisputes.map((dispute) => (
+                            <div
+                              key={dispute.id}
+                              className="flex items-start justify-between p-3 border rounded-lg"
+                            >
+                              <div>
+                                <p className="font-medium">{dispute.product?.name || 'Product'}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {dispute.customer?.name || dispute.customer?.email || 'Customer'} vs{' '}
+                                  {dispute.product?.vendorName || 'Vendor'}
+                                </p>
+                              </div>
+                              <Badge variant="destructive">Rejected</Badge>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold text-primary">4.8</p>
-                    <p className="text-sm text-muted-foreground">Avg Rating</p>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-primary">89%</p>
-                    <p className="text-sm text-muted-foreground">Completion Rate</p>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-primary">5.2k</p>
-                    <p className="text-sm text-muted-foreground">Total Rentals</p>
-                  </div>
-                </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Analytics data unavailable.</p>
+                )}
               </CardContent>
             </Card>
           </>
@@ -1083,16 +1164,58 @@ const fetchAllProducts = async () => {
           <>
             <div className="mb-8">
               <h1 className="text-3xl font-bold mb-2">Settings</h1>
-              <p className="text-muted-foreground">Platform configuration and preferences</p>
+              <p className="text-muted-foreground">Manage your superadmin account preferences</p>
             </div>
 
-            <Card>
+            <Card className="max-w-xl">
               <CardHeader>
-                <CardTitle>Platform Settings</CardTitle>
-                <CardDescription>Configure platform-wide settings</CardDescription>
+                <CardTitle>Change Password</CardTitle>
+                <CardDescription>Update your login credentials</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground">Settings form will be implemented here</p>
+                <form onSubmit={handlePasswordChangeSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="current-password">Current Password</Label>
+                    <Input
+                      id="current-password"
+                      type="password"
+                      value={passwordForm.currentPassword}
+                      onChange={(event) =>
+                        setPasswordForm((prev) => ({ ...prev, currentPassword: event.target.value }))
+                      }
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="new-password">New Password</Label>
+                    <Input
+                      id="new-password"
+                      type="password"
+                      value={passwordForm.newPassword}
+                      onChange={(event) =>
+                        setPasswordForm((prev) => ({ ...prev, newPassword: event.target.value }))
+                      }
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="confirm-password">Confirm New Password</Label>
+                    <Input
+                      id="confirm-password"
+                      type="password"
+                      value={passwordForm.confirmPassword}
+                      onChange={(event) =>
+                        setPasswordForm((prev) => ({ ...prev, confirmPassword: event.target.value }))
+                      }
+                      required
+                    />
+                  </div>
+                  <div className="flex justify-end">
+                    <Button type="submit" disabled={passwordSubmitting}>
+                      {passwordSubmitting ? 'Updating...' : 'Update Password'}
+                    </Button>
+                  </div>
+                </form>
               </CardContent>
             </Card>
           </>

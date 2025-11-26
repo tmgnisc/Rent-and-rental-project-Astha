@@ -451,4 +451,50 @@ const markRentalReturned = async (req, res, next) => {
   }
 };
 
+const getReturnRequests = async (req, res, next) => {
+  try {
+    const [rows] = await pool.query(
+      `${buildReturnsQuery}
+       WHERE r.return_request_status IN ('pending','approved','rejected')
+       ORDER BY r.return_requested_at DESC`
+    );
+
+    res.json({
+      success: true,
+      returns: mapReturnRecords(rows),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const getDisputeReturns = async (req, res, next) => {
+  try {
+    const [rows] = await pool.query(
+      `${buildReturnsQuery}
+       WHERE r.return_request_status = 'rejected'
+       ORDER BY r.return_requested_at DESC`
+    );
+
+    res.json({
+      success: true,
+      disputes: mapReturnRecords(rows),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = {
+  createRental,
+  confirmRental,
+  requestRentalReturn,
+  getUserRentals,
+  getVendorAnalytics,
+  markRentalHandedOver,
+  markRentalReturned,
+  rejectRentalReturn,
+  getReturnRequests,
+  getDisputeReturns,
+};
 
