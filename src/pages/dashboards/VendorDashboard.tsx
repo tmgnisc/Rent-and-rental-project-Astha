@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { RootState } from '@/store/store';
@@ -45,6 +45,36 @@ import {
   LayoutDashboard,
 } from 'lucide-react';
 
+type VendorRental = {
+  id: string;
+  status: 'pending' | 'active' | 'completed' | 'cancelled';
+  startDate: string;
+  endDate: string | null;
+  totalAmount: number;
+  createdAt: string;
+  product: {
+    id: string;
+    name: string | null;
+    category: string | null;
+    image: string | null;
+  } | null;
+  customer?: {
+    id: string;
+    name: string | null;
+    email: string | null;
+  } | null;
+};
+
+type VendorAnalyticsSummary = {
+  totalRentals: number;
+  activeRentals: number;
+  pendingRentals: number;
+  completedRentals: number;
+  cancelledRentals: number;
+  totalRevenue: number;
+  uniqueCustomers: number;
+};
+
 const VendorDashboard = () => {
   const { user, token } = useSelector((state: RootState) => state.auth);
   const navigate = useNavigate();
@@ -55,10 +85,19 @@ const VendorDashboard = () => {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deleteProductId, setDeleteProductId] = useState<string | null>(null);
+  const [rentals, setRentals] = useState<VendorRental[]>([]);
+  const [analyticsSummary, setAnalyticsSummary] = useState<VendorAnalyticsSummary | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
   useEffect(() => {
     if ((activeView === 'products' || activeView === 'overview') && token) {
       fetchProducts();
+    }
+  }, [activeView, token]);
+
+  useEffect(() => {
+    if ((activeView === 'overview' || activeView === 'analytics') && token) {
+      fetchAnalytics();
     }
   }, [activeView, token]);
 
@@ -148,12 +187,54 @@ const VendorDashboard = () => {
     setActiveView('add-product');
   };
 
+  const fetchAnalytics = async () => {
+    if (!token) return;
+    setAnalyticsLoading(true);
+    try {
+      const data = await apiRequest<{
+        success: boolean;
+        summary: VendorAnalyticsSummary;
+        rentals: VendorRental[];
+      }>('/rentals/vendor/analytics', {
+        token,
+      });
+      setAnalyticsSummary(data.summary);
+      setRentals(data.rentals);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to load analytics');
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
+
   const stats = [
-    { label: 'Total Products', value: products.length.toString(), icon: Package, change: `${products.filter(p => p.status === 'available').length} available` },
-    { label: 'Active Rentals', value: products.filter(p => p.status === 'rented').length.toString(), icon: BarChart3, change: 'Currently rented' },
-    { label: 'Revenue', value: '₹0', icon: Package, change: 'This month' },
-    { label: 'Rating', value: '0', icon: BarChart3, change: 'Based on reviews' },
+    {
+      label: 'Total Products',
+      value: products.length.toString(),
+      icon: Package,
+      change: `${products.filter((p) => p.status === 'available').length} available`,
+    },
+    {
+      label: 'Active Rentals',
+      value: analyticsSummary ? analyticsSummary.activeRentals.toString() : '0',
+      icon: BarChart3,
+      change: 'Currently rented',
+    },
+    {
+      label: 'Pending Requests',
+      value: analyticsSummary ? analyticsSummary.pendingRentals.toString() : '0',
+      icon: Clock,
+      change: 'Awaiting approval/payment',
+    },
+    {
+      label: 'Revenue',
+      value: analyticsSummary ? `₹${analyticsSummary.totalRevenue.toFixed(2)}` : '₹0',
+      icon: Package,
+      change: 'Lifetime earnings',
+    },
   ];
+
+  const analyticsRentals = useMemo(() => rentals.slice(0, 6), [rentals]);
 
   const renderContent = () => {
     switch (activeView) {
@@ -343,13 +424,104 @@ const VendorDashboard = () => {
               <p className="text-muted-foreground">Track your business performance</p>
             </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardDescription>Total Rentals</CardDescription>
+                  <CardTitle className="text-3xl">
+                    {analyticsSummary ? analyticsSummary.totalRentals : '—'}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-sm text-muted-foreground">
+                  {analyticsSummary
+                    ? `${analyticsSummary.completedRentals} completed • ${analyticsSummary.pendingRentals} pending`
+                    : 'No rental data yet'}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardDescription>Active Rentals</CardDescription>
+                  <CardTitle className="text-3xl">
+                    {analyticsSummary ? analyticsSummary.activeRentals : '—'}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-sm text-muted-foreground">
+                  {analyticsSummary
+                    ? `${analyticsSummary.uniqueCustomers} unique customers`
+                    : 'Waiting for first rental'}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardDescription>Total Revenue</CardDescription>
+                  <CardTitle className="text-3xl">
+                    {analyticsSummary ? `₹${analyticsSummary.totalRevenue.toFixed(2)}` : '₹0.00'}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-sm text-muted-foreground">
+                  Revenue from confirmed & completed rentals
+                </CardContent>
+              </Card>
+            </div>
+
             <Card>
               <CardHeader>
-                <CardTitle>Business Analytics</CardTitle>
-                <CardDescription>Revenue, rentals, and performance metrics</CardDescription>
+                <CardTitle>Recent Rentals</CardTitle>
+                <CardDescription>Latest bookings and their status</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground">Analytics charts will be implemented here</p>
+                {analyticsLoading ? (
+                  <p className="text-sm text-muted-foreground">Loading rental insights...</p>
+                ) : analyticsRentals.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No rentals yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {analyticsRentals.map((rental) => (
+                      <div
+                        key={rental.id}
+                        className="flex flex-col gap-2 border rounded-lg p-4 md:flex-row md:items-center md:justify-between"
+                      >
+                        <div className="flex items-center gap-4">
+                          {rental.product?.image && (
+                            <img
+                              src={rental.product.image}
+                              alt={rental.product.name || 'Product image'}
+                              className="w-14 h-14 rounded-lg object-cover"
+                            />
+                          )}
+                          <div>
+                            <p className="font-semibold">{rental.product?.name || 'Product'}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Booked on {new Date(rental.createdAt).toLocaleDateString()}
+                            </p>
+                            {rental.customer && (
+                              <p className="text-xs text-muted-foreground">
+                                Customer: {rental.customer.name || 'N/A'}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right space-y-1">
+                          <Badge
+                            variant={
+                              rental.status === 'completed'
+                                ? 'default'
+                                : rental.status === 'active'
+                                  ? 'secondary'
+                                  : 'outline'
+                            }
+                            className="capitalize"
+                          >
+                            {rental.status}
+                          </Badge>
+                          <p className="text-sm font-semibold text-primary">
+                            ₹{Number(rental.totalAmount || 0).toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </>

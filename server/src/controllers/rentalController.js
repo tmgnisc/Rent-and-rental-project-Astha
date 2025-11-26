@@ -107,6 +107,7 @@ const confirmRental = async (req, res, next) => {
   const { id } = req.params;
 
   const connection = await pool.getConnection();
+  let transactionStarted = false;
   try {
     const [rentalRows] = await connection.query(
       `SELECT * FROM rentals WHERE id = ? AND user_id = ? LIMIT 1`,
@@ -159,7 +160,16 @@ const confirmRental = async (req, res, next) => {
 const getUserRentals = async (req, res, next) => {
   try {
     const [rows] = await pool.query(
-      `SELECT * FROM rentals WHERE user_id = ? ORDER BY created_at DESC`,
+      `SELECT 
+        r.*,
+        p.name AS product_name,
+        p.image_url AS product_image,
+        p.category AS product_category,
+        p.vendor_name AS product_vendor_name
+       FROM rentals r
+       INNER JOIN products p ON p.id = r.product_id
+       WHERE r.user_id = ?
+       ORDER BY r.created_at DESC`,
       [req.user.id]
     );
 
@@ -172,9 +182,73 @@ const getUserRentals = async (req, res, next) => {
   }
 };
 
+const getVendorAnalytics = async (req, res, next) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT 
+        r.*,
+        p.name AS product_name,
+        p.image_url AS product_image,
+        p.category AS product_category,
+        p.vendor_name AS product_vendor_name,
+        u.name AS customer_name,
+        u.email AS customer_email
+       FROM rentals r
+       INNER JOIN products p ON p.id = r.product_id
+       INNER JOIN users u ON u.id = r.user_id
+       WHERE p.vendor_id = ?
+       ORDER BY r.created_at DESC`,
+      [req.user.id]
+    );
+
+    const summaryAccumulator = rows.reduce(
+      (acc, rental) => {
+        acc.totalRentals += 1;
+        if (rental.status === 'active') acc.activeRentals += 1;
+        if (rental.status === 'pending') acc.pendingRentals += 1;
+        if (rental.status === 'completed') acc.completedRentals += 1;
+        if (rental.status === 'cancelled') acc.cancelledRentals += 1;
+        if (['active', 'completed'].includes(rental.status)) {
+          acc.totalRevenue += Number(rental.total_amount || 0);
+        }
+        acc.uniqueCustomers.add(rental.user_id);
+        return acc;
+      },
+      {
+        totalRentals: 0,
+        activeRentals: 0,
+        pendingRentals: 0,
+        completedRentals: 0,
+        cancelledRentals: 0,
+        totalRevenue: 0,
+        uniqueCustomers: new Set(),
+      }
+    );
+
+    const summary = {
+      totalRentals: summaryAccumulator.totalRentals,
+      activeRentals: summaryAccumulator.activeRentals,
+      pendingRentals: summaryAccumulator.pendingRentals,
+      completedRentals: summaryAccumulator.completedRentals,
+      cancelledRentals: summaryAccumulator.cancelledRentals,
+      totalRevenue: Number(summaryAccumulator.totalRevenue.toFixed(2)),
+      uniqueCustomers: summaryAccumulator.uniqueCustomers.size,
+    };
+
+    res.json({
+      success: true,
+      summary,
+      rentals: rows.map(mapRentalRecord),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   createRental,
   confirmRental,
   getUserRentals,
+  getVendorAnalytics,
 };
 

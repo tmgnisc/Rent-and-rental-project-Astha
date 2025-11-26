@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '@/store/store';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +11,24 @@ import { apiRequest } from '@/lib/api';
 import { toast } from 'sonner';
 import { setCredentials } from '@/store/slices/authSlice';
 
+type RentalProduct = {
+  id: string;
+  name: string | null;
+  image: string | null;
+  category: string | null;
+  vendorName: string | null;
+};
+
+type UserRental = {
+  id: string;
+  status: 'pending' | 'active' | 'completed' | 'cancelled';
+  startDate: string;
+  endDate: string | null;
+  totalAmount: number;
+  createdAt: string;
+  product: RentalProduct | null;
+};
+
 const UserDashboard = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -21,6 +39,8 @@ const UserDashboard = () => {
   const [kycUploading, setKycUploading] = useState(false);
   const [kycFile, setKycFile] = useState<File | null>(null);
   const [kycPreview, setKycPreview] = useState<string>('');
+  const [rentals, setRentals] = useState<UserRental[]>([]);
+  const [rentalsLoading, setRentalsLoading] = useState(false);
   const objectUrlRef = useRef<string | null>(null);
 
   const fetchKycStatus = useCallback(async () => {
@@ -40,9 +60,25 @@ const UserDashboard = () => {
     }
   }, [token]);
 
+  const fetchUserRentals = useCallback(async () => {
+    if (!token) return;
+    setRentalsLoading(true);
+    try {
+      const data = await apiRequest<{ success: boolean; rentals: UserRental[] }>('/rentals/me', {
+        token,
+      });
+      setRentals(data.rentals || []);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to fetch rentals');
+    } finally {
+      setRentalsLoading(false);
+    }
+  }, [token]);
+
   useEffect(() => {
     fetchKycStatus();
-  }, [fetchKycStatus]);
+    fetchUserRentals();
+  }, [fetchKycStatus, fetchUserRentals]);
 
   useEffect(() => {
     if (user) {
@@ -114,6 +150,20 @@ const UserDashboard = () => {
 
   const isKycApproved = kycStatus === 'approved';
 
+  const rentalSummary = useMemo(() => {
+    const active = rentals.filter((rental) => rental.status === 'active').length;
+    const pending = rentals.filter((rental) => rental.status === 'pending').length;
+    const totalSpent = rentals
+      .filter((rental) => ['completed', 'active'].includes(rental.status))
+      .reduce((sum, rental) => sum + Number(rental.totalAmount || 0), 0);
+
+    return {
+      active,
+      pending,
+      totalSpent,
+    };
+  }, [rentals]);
+
   const stats = [
     {
       label: 'KYC Status',
@@ -121,9 +171,9 @@ const UserDashboard = () => {
       icon: ShieldCheck,
       color: isKycApproved ? 'text-success' : 'text-warning',
     },
-    { label: 'Active Rentals', value: '0', icon: Package, color: 'text-primary' },
-    { label: 'Pending Requests', value: '0', icon: Clock, color: 'text-warning' },
-    { label: 'Total Spent', value: '₹0', icon: History, color: 'text-accent' },
+    { label: 'Active Rentals', value: rentalSummary.active.toString(), icon: Package, color: 'text-primary' },
+    { label: 'Pending Requests', value: rentalSummary.pending.toString(), icon: Clock, color: 'text-warning' },
+    { label: 'Total Spent', value: `₹${rentalSummary.totalSpent.toFixed(2)}`, icon: History, color: 'text-accent' },
   ];
 
   return (
@@ -239,9 +289,59 @@ const UserDashboard = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-sm text-muted-foreground text-center py-6">
-              Rental history will appear here once you book your first item.
-            </div>
+            {rentalsLoading ? (
+              <p className="text-sm text-muted-foreground text-center py-6">Loading your rentals...</p>
+            ) : rentals.length === 0 ? (
+              <div className="text-sm text-muted-foreground text-center py-6">
+                Rental history will appear here once you book your first item.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {rentals.map((rental) => (
+                  <div
+                    key={rental.id}
+                    className="flex flex-col gap-4 border rounded-lg p-4 md:flex-row md:items-center md:justify-between"
+                  >
+                    <div className="flex items-center gap-4">
+                      {rental.product?.image && (
+                        <img
+                          src={rental.product.image}
+                          alt={rental.product.name || 'Product image'}
+                          className="w-16 h-16 rounded-lg object-cover"
+                        />
+                      )}
+                      <div>
+                        <p className="font-semibold">{rental.product?.name || 'Product'}</p>
+                        <p className="text-xs text-muted-foreground capitalize">
+                          {rental.product?.category || 'category'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Start: {new Date(rental.startDate).toLocaleDateString()}
+                          {rental.endDate && ` • Return: ${new Date(rental.endDate).toLocaleDateString()}`}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right space-y-2">
+                      <Badge
+                        variant={
+                          rental.status === 'completed'
+                            ? 'default'
+                            : rental.status === 'active'
+                              ? 'secondary'
+                              : 'outline'
+                        }
+                        className="capitalize"
+                      >
+                        {rental.status}
+                      </Badge>
+                      <p className="text-sm font-semibold text-primary">
+                        ₹{Number(rental.totalAmount || 0).toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
