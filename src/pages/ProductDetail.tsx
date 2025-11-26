@@ -293,13 +293,13 @@ useEffect(() => {
                 <CardContent className="p-6">
                   <div className="flex items-baseline gap-2 mb-2">
                     <span className="text-4xl font-bold text-primary">
-                      ₹{product.rentalPricePerDay}
+                      NPR {product.rentalPricePerDay}
                     </span>
                     <span className="text-lg text-muted-foreground">/day</span>
                   </div>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    + ₹{product.refundableDeposit} refundable deposit
-                  </p>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      + NPR {product.refundableDeposit} refundable deposit
+                    </p>
                   
                   <Button 
                     size="lg" 
@@ -431,18 +431,18 @@ useEffect(() => {
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm text-muted-foreground">
-                        ₹{product.rentalPricePerDay} × {rentalSummary.rentalDays} days
+                        NPR {product.rentalPricePerDay} × {rentalSummary.rentalDays} days
                       </span>
-                      <span className="font-semibold">₹{rentalSummary.rentalCost}</span>
+                      <span className="font-semibold">NPR {rentalSummary.rentalCost}</span>
                     </div>
                     <div className="flex items-center justify-between text-sm text-muted-foreground">
                       <span>Refundable deposit</span>
-                      <span>₹{product.refundableDeposit}</span>
+                      <span>NPR {product.refundableDeposit}</span>
                     </div>
                     <Separator className="my-3" />
                     <div className="flex items-center justify-between">
                       <span className="font-semibold">Total due now</span>
-                      <span className="text-xl font-bold text-primary">₹{rentalSummary.total}</span>
+                      <span className="text-xl font-bold text-primary">NPR {rentalSummary.total}</span>
                     </div>
                   </CardContent>
                 </Card>

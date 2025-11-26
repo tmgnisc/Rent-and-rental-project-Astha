@@ -186,7 +186,12 @@ const UserDashboard = () => {
     },
     { label: 'Active Rentals', value: rentalSummary.active.toString(), icon: Package, color: 'text-primary' },
     { label: 'Pending Requests', value: rentalSummary.pending.toString(), icon: Clock, color: 'text-warning' },
-    { label: 'Total Spent', value: `₹${rentalSummary.totalSpent.toFixed(2)}`, icon: History, color: 'text-accent' },
+    {
+      label: 'Total Spent',
+      value: `NPR ${rentalSummary.totalSpent.toFixed(2)}`,
+      icon: History,
+      color: 'text-accent',
+    },
   ];
 
   return (
@@ -358,11 +363,11 @@ const UserDashboard = () => {
                         {rental.status}
                       </Badge>
                       <p className="text-sm font-semibold text-primary">
-                        ₹{Number(rental.totalAmount || 0).toFixed(2)}
+                        NPR {Number(rental.totalAmount || 0).toFixed(2)}
                       </p>
                       {rental.isOverdue && (
                         <p className="text-xs text-destructive font-semibold">
-                          Overdue by {rental.overdueDays} day(s). Fine ₹
+                          Overdue by {rental.overdueDays} day(s). Fine NPR{' '}
                           {Number(rental.outstandingFine || 0).toFixed(2)}
                         </p>
                       )}

@@ -287,7 +287,7 @@ const ProductForm = ({ product, onSubmit, onCancel, loading = false }: ProductFo
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="rental_price_per_day">Rental Price per Day (₹) *</Label>
+              <Label htmlFor="rental_price_per_day">Rental Price per Day (NPR) *</Label>
               <Input
                 id="rental_price_per_day"
                 name="rental_price_per_day"
@@ -302,7 +302,7 @@ const ProductForm = ({ product, onSubmit, onCancel, loading = false }: ProductFo
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="refundable_deposit">Refundable Deposit (₹) *</Label>
+              <Label htmlFor="refundable_deposit">Refundable Deposit (NPR) *</Label>
               <Input
                 id="refundable_deposit"
                 name="refundable_deposit"

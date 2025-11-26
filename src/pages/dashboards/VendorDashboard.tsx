@@ -273,7 +273,7 @@ const VendorDashboard = () => {
     },
     {
       label: 'Revenue',
-      value: analyticsSummary ? `₹${analyticsSummary.totalRevenue.toFixed(2)}` : '₹0',
+      value: analyticsSummary ? `NPR ${analyticsSummary.totalRevenue.toFixed(2)}` : 'NPR 0',
       icon: Package,
       change: 'Lifetime earnings',
     },
@@ -397,7 +397,7 @@ const VendorDashboard = () => {
                             <h3 className="font-semibold">{product.name}</h3>
                             <p className="text-sm text-muted-foreground capitalize">{product.category}</p>
                             <p className="text-sm font-medium text-primary mt-1">
-                              ₹{product.rentalPricePerDay}/day
+                              NPR {product.rentalPricePerDay}/day
                             </p>
                           </div>
                         </div>
@@ -500,7 +500,7 @@ const VendorDashboard = () => {
                 <CardHeader className="pb-2">
                   <CardDescription>Total Revenue</CardDescription>
                   <CardTitle className="text-3xl">
-                    {analyticsSummary ? `₹${analyticsSummary.totalRevenue.toFixed(2)}` : '₹0.00'}
+                    {analyticsSummary ? `NPR ${analyticsSummary.totalRevenue.toFixed(2)}` : 'NPR 0.00'}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="text-sm text-muted-foreground">
@@ -511,7 +511,7 @@ const VendorDashboard = () => {
                 <CardHeader className="pb-2">
                   <CardDescription>Outstanding Fines</CardDescription>
                   <CardTitle className="text-3xl">
-                    {analyticsSummary ? `₹${analyticsSummary.outstandingFines.toFixed(2)}` : '₹0.00'}
+                    {analyticsSummary ? `NPR ${analyticsSummary.outstandingFines.toFixed(2)}` : 'NPR 0.00'}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="text-sm text-muted-foreground">
@@ -562,7 +562,7 @@ const VendorDashboard = () => {
                             )}
                             {rental.isOverdue && (
                               <p className="text-xs text-destructive font-semibold">
-                                Overdue by {rental.overdueDays} day(s). Fine ₹
+                                Overdue by {rental.overdueDays} day(s). Fine NPR 
                                 {Number(rental.outstandingFine || 0).toFixed(2)}
                               </p>
                             )}
@@ -582,7 +582,7 @@ const VendorDashboard = () => {
                             {rental.status}
                           </Badge>
                           <p className="text-sm font-semibold text-primary">
-                            ₹{Number(rental.totalAmount || 0).toFixed(2)}
+                            NPR {Number(rental.totalAmount || 0).toFixed(2)}
                           </p>
                           <div className="flex flex-wrap justify-end gap-2">
                             {rental.status === 'active' && !rental.handedOverAt && (

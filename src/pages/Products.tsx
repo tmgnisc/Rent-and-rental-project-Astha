@@ -129,7 +129,7 @@ const Products = () => {
               <div className="flex items-center justify-between">
                 <Label className="text-sm font-medium">Max price per day</Label>
                 <span className="text-sm text-muted-foreground">
-                  ₹{(maxPriceFilter || highestPrice || 0).toFixed(0)}
+                  NPR {(maxPriceFilter || highestPrice || 0).toFixed(0)}
                 </span>
               </div>
               <Slider
