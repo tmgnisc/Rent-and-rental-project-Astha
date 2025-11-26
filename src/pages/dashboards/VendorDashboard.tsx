@@ -569,6 +569,24 @@ const VendorDashboard = () => {
                                 {Number(rental.outstandingFine || 0).toFixed(2)}
                               </p>
                             )}
+                            {rental.returnRequestStatus === 'pending' && (
+                              <div className="text-xs text-warning space-y-1">
+                                <p>
+                                  Return requested
+                                  {rental.returnRequestNote && `: ${rental.returnRequestNote}`}
+                                </p>
+                                {rental.returnRequestImage && (
+                                  <a
+                                    href={rental.returnRequestImage}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-primary underline"
+                                  >
+                                    View customer photo
+                                  </a>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
                         <div className="text-right space-y-2">
@@ -598,13 +616,15 @@ const VendorDashboard = () => {
                                 {actionLoading === `handover-${rental.id}` ? 'Updating...' : 'Mark handed'}
                               </Button>
                             )}
-                            {rental.status === 'active' && rental.handedOverAt && !rental.returnedAt && (
+                            {rental.status === 'active' &&
+                              rental.handedOverAt &&
+                              rental.returnRequestStatus === 'pending' && (
                               <Button
                                 size="sm"
                                 onClick={() => handleReturn(rental.id)}
                                 disabled={actionLoading === `return-${rental.id}`}
                               >
-                                {actionLoading === `return-${rental.id}` ? 'Saving...' : 'Mark returned'}
+                                  {actionLoading === `return-${rental.id}` ? 'Saving...' : 'Approve return'}
                               </Button>
                             )}
                           </div>

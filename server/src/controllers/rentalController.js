@@ -186,6 +186,10 @@ const requestRentalReturn = async (req, res, next) => {
       throw new ApiError(400, 'Return request already submitted');
     }
 
+    if (!note || !note.trim()) {
+      throw new ApiError(400, 'Return description is required');
+    }
+
     if (!req.file) {
       throw new ApiError(400, 'Product photo is required for return request');
     }
