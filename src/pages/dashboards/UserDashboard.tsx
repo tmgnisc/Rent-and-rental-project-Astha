@@ -20,6 +20,7 @@ import { apiRequest } from '@/lib/api';
 import { toast } from 'sonner';
 import { setCredentials } from '@/store/slices/authSlice';
 import type { User } from '@/store/slices/authSlice';
+import { Label } from '@/components/ui/label';
 
 type RentalProduct = {
   id: string;
@@ -119,6 +120,9 @@ const UserDashboard = () => {
       if (objectUrlRef.current) {
         URL.revokeObjectURL(objectUrlRef.current);
       }
+      if (returnObjectUrlRef.current) {
+        URL.revokeObjectURL(returnObjectUrlRef.current);
+      }
     };
   }, []);
 
@@ -181,6 +185,75 @@ const UserDashboard = () => {
   const navigateToProducts = () => navigate('/products');
 
   const isKycApproved = kycStatus === 'approved';
+
+  const openReturnModal = (rental: UserRental) => {
+    setSelectedRental(rental);
+    setReturnNote('');
+    setReturnFile(null);
+    if (returnObjectUrlRef.current) {
+      URL.revokeObjectURL(returnObjectUrlRef.current);
+      returnObjectUrlRef.current = null;
+    }
+    setReturnPreview('');
+    setReturnModalOpen(true);
+  };
+
+  const closeReturnModal = () => {
+    setReturnModalOpen(false);
+    setSelectedRental(null);
+    setReturnNote('');
+    setReturnFile(null);
+    if (returnObjectUrlRef.current) {
+      URL.revokeObjectURL(returnObjectUrlRef.current);
+      returnObjectUrlRef.current = null;
+    }
+    setReturnPreview('');
+  };
+
+  const handleReturnFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (returnObjectUrlRef.current) {
+      URL.revokeObjectURL(returnObjectUrlRef.current);
+      returnObjectUrlRef.current = null;
+    }
+    const previewUrl = URL.createObjectURL(file);
+    returnObjectUrlRef.current = previewUrl;
+    setReturnFile(file);
+    setReturnPreview(previewUrl);
+  };
+
+  const handleReturnRequestSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!selectedRental || !token) return;
+    if (!returnNote.trim()) {
+      toast.error('Please describe the product condition.');
+      return;
+    }
+    if (!returnFile) {
+      toast.error('Please upload a photo of the product.');
+      return;
+    }
+
+    setReturnSubmitting(true);
+    try {
+      const payload = new FormData();
+      payload.append('note', returnNote.trim());
+      payload.append('photo', returnFile);
+      await apiRequest(`/rentals/${selectedRental.id}/return-request`, {
+        method: 'POST',
+        token,
+        body: payload,
+      });
+      toast.success('Return request submitted');
+      closeReturnModal();
+      fetchUserRentals();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to submit return request');
+    } finally {
+      setReturnSubmitting(false);
+    }
+  };
 
   const rentalSummary = useMemo(() => {
     const active = rentals.filter((rental) => rental.status === 'active').length;
@@ -390,6 +463,22 @@ const UserDashboard = () => {
                           {Number(rental.outstandingFine || 0).toFixed(2)}
                         </p>
                       )}
+                      {rental.returnRequestStatus === 'pending' && (
+                        <p className="text-xs text-warning font-semibold">
+                          Return request pending vendor approval
+                        </p>
+                      )}
+                      {rental.returnRequestStatus === 'approved' && (
+                        <p className="text-xs text-success font-semibold">Return approved</p>
+                      )}
+                      {rental.returnRequestStatus === 'rejected' && (
+                        <p className="text-xs text-destructive font-semibold">Return request rejected</p>
+                      )}
+                      {rental.status === 'active' && rental.returnRequestStatus !== 'pending' && (
+                        <Button size="sm" variant="outline" onClick={() => openReturnModal(rental)}>
+                          Request Return
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -426,6 +515,65 @@ const UserDashboard = () => {
         </Card>
       </div>
     </div>
+
+      <Dialog open={returnModalOpen} onOpenChange={(open) => (open ? setReturnModalOpen(true) : closeReturnModal())}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Request Return</DialogTitle>
+            <DialogDescription>
+              Share the product condition and upload a clear photo so the vendor can review your request quickly.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedRental && (
+            <form onSubmit={handleReturnRequestSubmit} className="space-y-4">
+              <div>
+                <Label className="text-sm font-medium">Product</Label>
+                <p className="text-sm text-muted-foreground">
+                  {selectedRental.product?.name || 'Product'} • Due on{' '}
+                  {selectedRental.dueDate
+                    ? new Date(selectedRental.dueDate).toLocaleDateString()
+                    : 'N/A'}
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="return-note">Condition & description *</Label>
+                <Textarea
+                  id="return-note"
+                  rows={3}
+                  value={returnNote}
+                  onChange={(event) => setReturnNote(event.target.value)}
+                  placeholder="Mention any accessories, scratches, or packaging details."
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="return-photo">Product photo *</Label>
+                <Input
+                  id="return-photo"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleReturnFileChange}
+                />
+                {returnPreview && (
+                  <img
+                    src={returnPreview}
+                    alt="Return preview"
+                    className="w-32 h-32 object-cover rounded border"
+                  />
+                )}
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={closeReturnModal} disabled={returnSubmitting}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={returnSubmitting}>
+                  {returnSubmitting ? 'Submitting...' : 'Submit Request'}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
   );
 };
 

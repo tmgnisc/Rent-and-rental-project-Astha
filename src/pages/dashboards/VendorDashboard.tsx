@@ -71,6 +71,9 @@ type VendorRental = {
   isOverdue: boolean;
   outstandingFine: number;
   dailyFine: number;
+  returnRequestStatus: 'none' | 'pending' | 'approved' | 'rejected';
+  returnRequestNote: string | null;
+  returnRequestImage: string | null;
 };
 
 type VendorAnalyticsSummary = {
