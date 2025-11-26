@@ -14,6 +14,12 @@ const userRoutes = require('./routes/userRoutes');
 const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
+app.set('etag', false);
+
+app.use((req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+});
 
 app.use(helmet());
 app.use(cors({
