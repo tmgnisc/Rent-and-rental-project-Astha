@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { RootState } from '@/store/store';
@@ -43,6 +43,7 @@ import {
   Settings,
   Home,
   LayoutDashboard,
+  Clock,
 } from 'lucide-react';
 
 type VendorRental = {
@@ -89,19 +90,7 @@ const VendorDashboard = () => {
   const [analyticsSummary, setAnalyticsSummary] = useState<VendorAnalyticsSummary | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
-  useEffect(() => {
-    if ((activeView === 'products' || activeView === 'overview') && token) {
-      fetchProducts();
-    }
-  }, [activeView, token]);
-
-  useEffect(() => {
-    if ((activeView === 'overview' || activeView === 'analytics') && token) {
-      fetchAnalytics();
-    }
-  }, [activeView, token]);
-
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     if (!token) return;
     setLoadingProducts(true);
     try {
@@ -114,7 +103,7 @@ const VendorDashboard = () => {
     } finally {
       setLoadingProducts(false);
     }
-  };
+  }, [token]);
 
   const handleCreateProduct = async (formData: FormData) => {
     if (!token) return;
@@ -187,7 +176,7 @@ const VendorDashboard = () => {
     setActiveView('add-product');
   };
 
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     if (!token) return;
     setAnalyticsLoading(true);
     try {
@@ -205,7 +194,19 @@ const VendorDashboard = () => {
     } finally {
       setAnalyticsLoading(false);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    if (activeView === 'products' || activeView === 'overview') {
+      fetchProducts();
+    }
+  }, [activeView, fetchProducts]);
+
+  useEffect(() => {
+    if (activeView === 'overview' || activeView === 'analytics') {
+      fetchAnalytics();
+    }
+  }, [activeView, fetchAnalytics]);
 
   const stats = [
     {

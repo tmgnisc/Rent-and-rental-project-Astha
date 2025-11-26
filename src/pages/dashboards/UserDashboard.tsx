@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { apiRequest } from '@/lib/api';
 import { toast } from 'sonner';
 import { setCredentials } from '@/store/slices/authSlice';
+import type { User } from '@/store/slices/authSlice';
 
 type RentalProduct = {
   id: string;
@@ -119,7 +120,12 @@ const UserDashboard = () => {
     try {
       const formData = new FormData();
       formData.append('document', kycFile);
-      const data = await apiRequest<{ success: boolean; message: string; kyc: { status: string; documentUrl: string | null }; user: any }>(
+      const data = await apiRequest<{
+        success: boolean;
+        message: string;
+        kyc: { status: string; documentUrl: string | null };
+        user: User;
+      }>(
         '/users/kyc',
         {
           method: 'POST',
