@@ -274,11 +274,76 @@ const deleteProduct = async (req, res, next) => {
   }
 };
 
+const allowedCategories = ['electronics', 'fashion', 'appliances', 'sports'];
+const allowedStatuses = ['available', 'rented', 'maintenance'];
+
+const getPublicProducts = async (req, res, next) => {
+  try {
+    const { category, status, limit } = req.query;
+    const filters = [];
+    let query = 'SELECT * FROM products WHERE 1=1';
+
+    if (status && typeof status === 'string' && allowedStatuses.includes(status)) {
+      query += ' AND status = ?';
+      filters.push(status);
+    } else {
+      query += ' AND status = "available"';
+    }
+
+    if (category && typeof category === 'string' && allowedCategories.includes(category)) {
+      query += ' AND category = ?';
+      filters.push(category);
+    }
+
+    query += ' ORDER BY created_at DESC';
+
+    if (limit) {
+      const parsedLimit = Number(limit);
+      if (!Number.isNaN(parsedLimit) && parsedLimit > 0) {
+        query += ' LIMIT ?';
+        filters.push(parsedLimit);
+      }
+    }
+
+    const [rows] = await pool.query(query, filters);
+
+    res.json({
+      success: true,
+      products: rows.map(mapProductRecord),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const getPublicProductById = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const [rows] = await pool.query(
+      `SELECT * FROM products WHERE id = ? LIMIT 1`,
+      [id]
+    );
+
+    if (rows.length === 0) {
+      throw new ApiError(404, 'Product not found');
+    }
+
+    res.json({
+      success: true,
+      product: mapProductRecord(rows[0]),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   createProduct,
   getVendorProducts,
   getProductById,
   updateProduct,
   deleteProduct,
+  getPublicProducts,
+  getPublicProductById,
 };
 

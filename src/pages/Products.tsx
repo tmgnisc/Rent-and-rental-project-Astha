@@ -2,21 +2,35 @@ import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams } from 'react-router-dom';
 import { RootState } from '@/store/store';
-import { setProducts, setCategory } from '@/store/slices/productsSlice';
-import { mockProducts } from '@/data/mockProducts';
+import { setProducts, setCategory, setLoading, ProductCategory, Product } from '@/store/slices/productsSlice';
+import { apiRequest } from '@/lib/api';
+import { toast } from 'sonner';
 import ProductCard from '@/components/ProductCard';
 import CategoryFilter from '@/components/CategoryFilter';
-import { ProductCategory } from '@/store/slices/productsSlice';
 import Footer from '@/components/Footer';
 
 const Products = () => {
   const { category } = useParams<{ category?: ProductCategory }>();
   const dispatch = useDispatch();
-  const { products, selectedCategory } = useSelector((state: RootState) => state.products);
+  const { products, selectedCategory, loading } = useSelector((state: RootState) => state.products);
 
   useEffect(() => {
-    dispatch(setProducts(mockProducts));
-  }, [dispatch]);
+    if (products.length === 0) {
+      loadProducts();
+    }
+  }, [dispatch, products.length]);
+
+  const loadProducts = async () => {
+    dispatch(setLoading(true));
+    try {
+      const data = await apiRequest<{ success: boolean; products: Product[] }>('/public/products');
+      dispatch(setProducts(data.products));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to load products');
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
 
   useEffect(() => {
     if (category) {

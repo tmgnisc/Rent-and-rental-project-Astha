@@ -4,8 +4,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Laptop, Shirt, Home, Dumbbell, Shield, Clock, DollarSign, Sparkles } from 'lucide-react';
 import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { setProducts } from '@/store/slices/productsSlice';
-import { mockProducts } from '@/data/mockProducts';
+import { toast } from 'sonner';
+import { apiRequest } from '@/lib/api';
+import { setProducts, setLoading, Product } from '@/store/slices/productsSlice';
 import ProductCard from '@/components/ProductCard';
 import { RootState } from '@/store/store';
 import Footer from '@/components/Footer';
@@ -13,11 +14,28 @@ import Footer from '@/components/Footer';
 const Landing = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const products = useSelector((state: RootState) => state.products.products);
+  const { products, loading } = useSelector((state: RootState) => state.products);
 
   useEffect(() => {
-    dispatch(setProducts(mockProducts));
-  }, [dispatch]);
+    if (products.length === 0) {
+      loadFeaturedProducts();
+    }
+  }, [dispatch, products.length]);
+
+  const loadFeaturedProducts = async () => {
+    dispatch(setLoading(true));
+    try {
+      const query = new URLSearchParams({ status: 'available', limit: '12' }).toString();
+      const data = await apiRequest<{ success: boolean; products: Product[] }>(
+        `/public/products?${query}`
+      );
+      dispatch(setProducts(data.products));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to load featured products');
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
 
   const featuredProducts = products.filter(p => p.status === 'available').slice(0, 4);
 
@@ -133,11 +151,21 @@ const Landing = () => {
               View All
             </Button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {featuredProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
+          {loading ? (
+            <div className="text-center text-muted-foreground py-10">
+              Loading featured products...
+            </div>
+          ) : featuredProducts.length === 0 ? (
+            <div className="text-center text-muted-foreground py-10">
+              No featured products available yet. Check back soon!
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {featuredProducts.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
