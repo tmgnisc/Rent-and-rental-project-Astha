@@ -28,10 +28,15 @@ const createUsersTable = `
     verification_status ENUM('pending','approved','rejected') DEFAULT 'approved',
     document_verified_by CHAR(36),
     kyc_document_url VARCHAR(500),
+    kyc_status ENUM('unverified','pending','approved','rejected') DEFAULT 'unverified',
+    kyc_verified_by CHAR(36),
+    kyc_document_url VARCHAR(500),
     kyc_status ENUM('unverified','pending','approved') DEFAULT 'unverified',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_document_verified_by FOREIGN KEY (document_verified_by)
+      REFERENCES users(id) ON DELETE SET NULL,
+    CONSTRAINT fk_kyc_verified_by FOREIGN KEY (kyc_verified_by)
       REFERENCES users(id) ON DELETE SET NULL
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 `;
