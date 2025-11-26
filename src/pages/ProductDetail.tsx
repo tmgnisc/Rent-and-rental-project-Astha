@@ -1,51 +1,3 @@
-  const handleCreateRental = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!product) return;
-    if (!token) {
-      toast.error('Authentication expired. Please login again.');
-      navigate('/login');
-      return;
-    }
-
-    setCreatingIntent(true);
-    try {
-      const payload = {
-        productId: product.id,
-        startDate: rentForm.startDate || today,
-        days: rentForm.days,
-        deliveryAddress: rentForm.deliveryAddress,
-        contactPhone: rentForm.contactPhone,
-      };
-
-      const response = await apiRequest<RentalApiResponse>('/rentals', {
-        method: 'POST',
-        token,
-        body: payload,
-      });
-
-      setRentalId(response.rental.id);
-      setClientSecret(response.clientSecret);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Unable to start rental');
-    } finally {
-      setCreatingIntent(false);
-    }
-  };
-
-  const handlePaymentSuccess = async () => {
-    if (!rentalId || !token) return;
-    try {
-      await apiRequest(`/rentals/${rentalId}/confirm`, {
-        method: 'POST',
-        token,
-      });
-      toast.success('Rental confirmed! Check your dashboard for details.');
-      setProduct((prev) => (prev ? { ...prev, status: 'rented' } : prev));
-      handleRentDialogChange(false);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Unable to confirm rental');
-    }
-  };
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -179,6 +131,67 @@ useEffect(() => {
     }
   };
 
+  const handleCreateRental = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!product) return;
+    if (!token) {
+      toast.error('Authentication expired. Please login again.');
+      navigate('/login');
+      return;
+    }
+
+    setCreatingIntent(true);
+    try {
+      const payload = {
+        productId: product.id,
+        startDate: rentForm.startDate || today,
+        days: rentForm.days,
+        deliveryAddress: rentForm.deliveryAddress,
+        contactPhone: rentForm.contactPhone,
+      };
+
+      const response = await apiRequest<RentalApiResponse>('/rentals', {
+        method: 'POST',
+        token,
+        body: payload,
+      });
+
+      setRentalId(response.rental.id);
+      setClientSecret(response.clientSecret);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to start rental');
+    } finally {
+      setCreatingIntent(false);
+    }
+  };
+
+  const handlePaymentSuccess = async () => {
+    if (!rentalId || !token) return;
+    try {
+      await apiRequest(`/rentals/${rentalId}/confirm`, {
+        method: 'POST',
+        token,
+      });
+      toast.success('Rental confirmed! Check your dashboard for details.');
+      setProduct((prev) => (prev ? { ...prev, status: 'rented' } : prev));
+      handleRentDialogChange(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to confirm rental');
+    }
+  };
+
+  const rentalSummary = useMemo(() => {
+    if (!product) {
+      return { rentalCost: 0, total: 0, rentalDays: rentForm.days };
+    }
+
+    const rentalDays = rentForm.days > 0 ? rentForm.days : 1;
+    const rentalCost = Number(product.rentalPricePerDay) * rentalDays;
+    const total = rentalCost + Number(product.refundableDeposit || 0);
+
+    return { rentalCost, total, rentalDays };
+  }, [product, rentForm.days]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -216,18 +229,6 @@ useEffect(() => {
         return 'bg-muted text-muted-foreground';
     }
   };
-
-  const rentalSummary = useMemo(() => {
-    if (!product) {
-      return { rentalCost: 0, total: 0 };
-    }
-
-    const rentalDays = rentForm.days > 0 ? rentForm.days : 1;
-    const rentalCost = Number(product.rentalPricePerDay) * rentalDays;
-    const total = rentalCost + Number(product.refundableDeposit || 0);
-
-    return { rentalCost, total, rentalDays };
-  }, [product, rentForm.days]);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -467,7 +468,7 @@ useEffect(() => {
                   appearance: { theme: 'stripe' },
                 }}
               >
-                <RentalPaymentForm rentalId={rentalId!} onSuccess={handlePaymentSuccess} />
+                <RentalPaymentForm onSuccess={handlePaymentSuccess} />
               </Elements>
             </>
           )}

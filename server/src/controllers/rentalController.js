@@ -122,6 +122,7 @@ const confirmRental = async (req, res, next) => {
     }
 
     await connection.beginTransaction();
+    transactionStarted = true;
 
     await connection.query(
       `UPDATE rentals SET status = 'active', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
@@ -142,7 +143,9 @@ const confirmRental = async (req, res, next) => {
       rental: mapRentalRecord(updatedRows[0]),
     });
   } catch (err) {
-    await connection.rollback();
+    if (transactionStarted) {
+      await connection.rollback();
+    }
     next(err);
   } finally {
     connection.release();
