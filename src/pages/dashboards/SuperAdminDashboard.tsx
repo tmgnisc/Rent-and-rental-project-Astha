@@ -84,6 +84,10 @@ const SuperAdminDashboard = () => {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
+  const customerUsers = useMemo(
+    () => allUsers.filter((u) => u.role === 'user'),
+    [allUsers]
+  );
   const vendorUsers = useMemo(
     () => allUsers.filter((u) => u.role === 'vendor'),
     [allUsers]
@@ -506,26 +510,6 @@ const SuperAdminDashboard = () => {
                     ))}
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          </>
-        );
-
-      case 'all-users':
-        return (
-          <>
-            <div className="mb-8">
-              <h1 className="text-3xl font-bold mb-2">All Users</h1>
-              <p className="text-muted-foreground">Manage all platform users</p>
-            </div>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>User Management</CardTitle>
-                <CardDescription>View and manage all registered users</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">User list will be implemented here</p>
               </CardContent>
             </Card>
           </>
