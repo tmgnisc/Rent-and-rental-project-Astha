@@ -204,7 +204,7 @@ const SuperAdminDashboard = () => {
     { label: 'Pending KYC', value: pendingKycUsers.length.toString(), icon: Shield, change: `${pendingKycUsers.length} awaiting approval` },
     { label: 'Pending Vendors', value: pendingVendors.length.toString(), icon: UserCheck, change: `${pendingVendors.length} awaiting review` },
     { label: 'Total Products', value: allProducts.length.toString(), icon: Package, change: 'Across all vendors' },
-    { label: 'Platform Revenue', value: '₹12.5L', icon: DollarSign, change: '+18% growth' },
+    { label: 'Platform Revenue', value: 'NPR 12.5L', icon: DollarSign, change: '+18% growth' },
   ];
 
   const recentDisputes = [

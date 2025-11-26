@@ -68,11 +68,11 @@ const ProductCard = ({ product }: ProductCardProps) => {
         </div>
 
         <div className="flex items-baseline gap-2">
-          <span className="text-2xl font-bold text-primary">₹{product.rentalPricePerDay}</span>
+          <span className="text-2xl font-bold text-primary">NPR {product.rentalPricePerDay}</span>
           <span className="text-sm text-muted-foreground">/day</span>
         </div>
         <p className="text-xs text-muted-foreground mt-1">
-          + ₹{product.refundableDeposit} refundable deposit
+          + NPR {product.refundableDeposit} refundable deposit
         </p>
       </CardContent>
 

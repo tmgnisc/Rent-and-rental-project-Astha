@@ -11,7 +11,7 @@ const AdminDashboard = () => {
   const stats = [
     { label: 'Total Products', value: '24', icon: Package, change: '+3 this month' },
     { label: 'Active Rentals', value: '18', icon: Users, change: '+5 this week' },
-    { label: 'Revenue', value: '₹45,200', icon: DollarSign, change: '+12% this month' },
+    { label: 'Revenue', value: 'NPR 45,200', icon: DollarSign, change: '+12% this month' },
     { label: 'Growth', value: '23%', icon: TrendingUp, change: 'vs last month' },
   ];
 
