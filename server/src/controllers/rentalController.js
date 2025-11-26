@@ -409,6 +409,7 @@ const markRentalReturned = async (req, res, next) => {
 module.exports = {
   createRental,
   confirmRental,
+  requestRentalReturn,
   getUserRentals,
   getVendorAnalytics,
   markRentalHandedOver,

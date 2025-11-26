@@ -5,6 +5,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { Package, Clock, CheckCircle, AlertCircle, History, Upload, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { apiRequest } from '@/lib/api';
@@ -34,6 +43,9 @@ type UserRental = {
   isOverdue: boolean;
   outstandingFine: number;
   dailyFine: number;
+  returnRequestStatus: 'none' | 'pending' | 'approved' | 'rejected';
+  returnRequestNote: string | null;
+  returnRequestImage: string | null;
   product: RentalProduct | null;
 };
 
@@ -50,6 +62,13 @@ const UserDashboard = () => {
   const [rentals, setRentals] = useState<UserRental[]>([]);
   const [rentalsLoading, setRentalsLoading] = useState(false);
   const objectUrlRef = useRef<string | null>(null);
+  const [returnModalOpen, setReturnModalOpen] = useState(false);
+  const [selectedRental, setSelectedRental] = useState<UserRental | null>(null);
+  const [returnNote, setReturnNote] = useState('');
+  const [returnFile, setReturnFile] = useState<File | null>(null);
+  const [returnPreview, setReturnPreview] = useState('');
+  const [returnSubmitting, setReturnSubmitting] = useState(false);
+  const returnObjectUrlRef = useRef<string | null>(null);
 
   const fetchKycStatus = useCallback(async () => {
     if (!token) return;
