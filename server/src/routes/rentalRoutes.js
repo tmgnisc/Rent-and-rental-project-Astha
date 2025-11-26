@@ -7,6 +7,8 @@ const {
   getVendorAnalytics,
   markRentalHandedOver,
   markRentalReturned,
+  rejectRentalReturn,
+  getReturnRequests,
 } = require('../controllers/rentalController');
 const { protect } = require('../middleware/authMiddleware');
 const { authorizeRoles } = require('../middleware/roleMiddleware');
@@ -24,6 +26,8 @@ router.get('/me', authorizeRoles('user'), getUserRentals);
 router.get('/vendor/analytics', authorizeRoles('vendor'), getVendorAnalytics);
 router.patch('/:id/handover', authorizeRoles('vendor'), markRentalHandedOver);
 router.patch('/:id/return', authorizeRoles('vendor'), markRentalReturned);
+router.patch('/:id/return-reject', authorizeRoles('vendor'), rejectRentalReturn);
+router.get('/admin/returns', authorizeRoles('superadmin'), getReturnRequests);
 
 module.exports = router;
 

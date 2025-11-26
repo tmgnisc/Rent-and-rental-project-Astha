@@ -93,6 +93,8 @@ const createRentalsTable = `
     return_request_image VARCHAR(500),
     return_requested_at DATETIME,
     return_request_status ENUM('none','pending','approved','rejected') DEFAULT 'none',
+    return_rejection_reason VARCHAR(150),
+    return_rejection_note TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_rentals_user_id FOREIGN KEY (user_id)
@@ -277,6 +279,8 @@ const migrateRentalsTable = async (connection) => {
         name: 'return_request_status',
         definition: `ENUM('none','pending','approved','rejected') DEFAULT 'none'`,
       },
+      { name: 'return_rejection_reason', definition: 'VARCHAR(150)' },
+      { name: 'return_rejection_note', definition: 'TEXT' },
     ];
 
     for (const column of columnsToAdd) {

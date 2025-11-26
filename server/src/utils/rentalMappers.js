@@ -80,6 +80,8 @@ const mapRentalRecord = (record) => {
   returnRequestImage: record.return_request_image || null,
   returnRequestStatus: record.return_request_status || 'none',
   returnRequestedAt: record.return_requested_at,
+  returnRejectionReason: record.return_rejection_reason || null,
+  returnRejectionNote: record.return_rejection_note || null,
     createdAt: record.created_at,
     updatedAt: record.updated_at,
     product: normalizeProduct(record),
