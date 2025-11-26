@@ -10,12 +10,8 @@ const resetPasswordSchema = Joi.object({
   password: Joi.string().min(6).max(128).required(),
 });
 
-const formatValidationError = (error) =>
-  error.details.map((detail) => detail.message.replace(/"/g, ''));
-
 module.exports = {
   forgotPasswordSchema,
   resetPasswordSchema,
-  formatValidationError,
 };
 
