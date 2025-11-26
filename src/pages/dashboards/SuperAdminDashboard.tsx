@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { RootState } from '@/store/store';
@@ -157,7 +157,7 @@ const SuperAdminDashboard = () => {
     }
   };
 
-  const fetchAllUsers = async () => {
+const fetchAllUsers = async () => {
     if (!token) return;
     setLoadingUsers(true);
     try {
@@ -172,22 +172,22 @@ const SuperAdminDashboard = () => {
     }
   };
 
-  const fetchAllProducts = async () => {
-  const fetchReturnRequests = async () => {
-    if (!token) return;
-    setLoadingReturns(true);
-    try {
-      const data = await apiRequest<{ success: boolean; returns: ReturnRequest[] }>('/rentals/admin/returns', {
-        token,
-      });
-      setReturnRequests(data.returns);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to load return requests');
-    } finally {
-      setLoadingReturns(false);
-    }
-  };
+const fetchReturnRequests = useCallback(async () => {
+  if (!token) return;
+  setLoadingReturns(true);
+  try {
+    const data = await apiRequest<{ success: boolean; returns: ReturnRequest[] }>('/rentals/admin/returns', {
+      token,
+    });
+    setReturnRequests(data.returns);
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : 'Failed to load return requests');
+  } finally {
+    setLoadingReturns(false);
+  }
+}, [token]);
 
+const fetchAllProducts = async () => {
     if (!token) return;
     setLoadingProducts(true);
     try {
@@ -211,7 +211,7 @@ const SuperAdminDashboard = () => {
       void fetchReturnRequests();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.role, token]);
+  }, [user?.role, token, fetchReturnRequests]);
 
   const handleVerify = async (vendorId: string, status: 'approved' | 'rejected') => {
     if (!token) return;
