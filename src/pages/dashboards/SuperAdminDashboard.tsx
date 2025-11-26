@@ -814,6 +814,96 @@ const SuperAdminDashboard = () => {
           </>
         );
 
+      case 'return-requests':
+        return (
+          <>
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold mb-2">Return Requests</h1>
+              <p className="text-muted-foreground">
+                Track customer return submissions, vendor decisions, and supporting evidence.
+              </p>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>All Return Requests</CardTitle>
+                    <CardDescription>Monitor pending and resolved returns</CardDescription>
+                  </div>
+                  <Badge variant="secondary">{returnRequests.length}</Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loadingReturns ? (
+                  <p className="text-sm text-muted-foreground">Loading return requests...</p>
+                ) : returnRequests.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No return activity yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {returnRequests.map((request) => (
+                      <div
+                        key={request.id}
+                        className="flex flex-col gap-3 border rounded-lg p-4 md:flex-row md:items-center md:justify-between"
+                      >
+                        <div className="space-y-1">
+                          <p className="font-semibold">{request.product?.name || 'Product'}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Customer: {request.customer?.name || request.customer?.email || 'N/A'}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Vendor: {request.product?.vendorName || 'N/A'}
+                          </p>
+                          {request.returnRequestNote && (
+                            <p className="text-xs text-muted-foreground">
+                              Note: {request.returnRequestNote}
+                            </p>
+                          )}
+                          {request.returnRequestImage && (
+                            <a
+                              href={request.returnRequestImage}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-xs text-primary underline"
+                            >
+                              View submitted photo
+                            </a>
+                          )}
+                          {request.returnRejectionReason && (
+                            <p className="text-xs text-destructive">
+                              Rejected: {request.returnRejectionReason}
+                              {request.returnRejectionNote && ` — ${request.returnRejectionNote}`}
+                            </p>
+                          )}
+                        </div>
+                        <div className="text-right space-y-1">
+                          <Badge
+                            variant={
+                              request.returnRequestStatus === 'approved'
+                                ? 'default'
+                                : request.returnRequestStatus === 'pending'
+                                  ? 'secondary'
+                                  : 'destructive'
+                            }
+                            className="capitalize"
+                          >
+                            {request.returnRequestStatus}
+                          </Badge>
+                          {request.returnRequestedAt && (
+                            <p className="text-xs text-muted-foreground">
+                              Requested on {new Date(request.returnRequestedAt).toLocaleDateString()}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </>
+        );
+
       case 'analytics':
         return (
           <>
