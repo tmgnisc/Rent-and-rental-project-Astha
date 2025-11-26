@@ -519,5 +519,6 @@ module.exports = {
   markRentalReturned,
   rejectRentalReturn,
   getReturnRequests,
+  getDisputeReturns,
 };
 
