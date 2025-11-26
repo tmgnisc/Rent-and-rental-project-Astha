@@ -11,11 +11,17 @@ const loginSchema = Joi.object({
   password: Joi.string().min(6).max(128).required(),
 });
 
+const changePasswordSchema = Joi.object({
+  currentPassword: Joi.string().min(6).max(128).required(),
+  newPassword: Joi.string().min(6).max(128).required(),
+});
+
 const formatValidationError = (error) =>
   error.details.map((detail) => detail.message.replace(/"/g, ''));
 
 module.exports = {
   registerSchema,
   loginSchema,
+  changePasswordSchema,
   formatValidationError,
 };

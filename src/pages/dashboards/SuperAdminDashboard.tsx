@@ -91,6 +91,19 @@ type ReturnRequest = {
   } | null;
 };
 
+type PlatformStats = {
+  totalUsers: number;
+  totalVendors: number;
+  totalProducts: number;
+  totalRentals: number;
+  activeRentals: number;
+  pendingRentals: number;
+  completedRentals: number;
+  totalRevenue: number;
+  pendingReturns: number;
+  disputes: number;
+};
+
 const SuperAdminDashboard = () => {
   const { user, token } = useSelector((state: RootState) => state.auth);
   const navigate = useNavigate();
@@ -118,8 +131,17 @@ const SuperAdminDashboard = () => {
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [returnRequests, setReturnRequests] = useState<ReturnRequest[]>([]);
   const [loadingReturns, setLoadingReturns] = useState(false);
-const [disputeReturns, setDisputeReturns] = useState<ReturnRequest[]>([]);
-const [loadingDisputes, setLoadingDisputes] = useState(false);
+  const [disputeReturns, setDisputeReturns] = useState<ReturnRequest[]>([]);
+  const [loadingDisputes, setLoadingDisputes] = useState(false);
+  const [platformStats, setPlatformStats] = useState<PlatformStats | null>(null);
+  const [platformStatsLoading, setPlatformStatsLoading] = useState(false);
+  const [analyticsDisputes, setAnalyticsDisputes] = useState<ReturnRequest[]>([]);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [passwordSubmitting, setPasswordSubmitting] = useState(false);
   const customerUsers = useMemo(
     () => allUsers.filter((u) => u.role === 'user'),
     [allUsers]
@@ -128,6 +150,7 @@ const [loadingDisputes, setLoadingDisputes] = useState(false);
     () => allUsers.filter((u) => u.role === 'vendor'),
     [allUsers]
   );
+  const overviewDisputes = useMemo(() => disputeReturns.slice(0, 3), [disputeReturns]);
 
   const fetchPendingVendors = async () => {
     if (!token) return;
@@ -219,6 +242,23 @@ const fetchAllProducts = async () => {
     }
   };
 
+  const fetchPlatformAnalytics = useCallback(async () => {
+    if (!token) return;
+    setPlatformStatsLoading(true);
+    try {
+      const data = await apiRequest<{ success: boolean; stats: PlatformStats; recentDisputes: ReturnRequest[] }>(
+        '/admin/analytics',
+        { token }
+      );
+      setPlatformStats(data.stats);
+      setAnalyticsDisputes(data.recentDisputes);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to load analytics');
+    } finally {
+      setPlatformStatsLoading(false);
+    }
+  }, [token]);
+
   useEffect(() => {
     if (user?.role === 'superadmin' && token) {
       void fetchPendingVendors();
@@ -226,10 +266,11 @@ const fetchAllProducts = async () => {
       void fetchAllUsers();
       void fetchAllProducts();
       void fetchReturnRequests();
+      void fetchPlatformAnalytics();
       void fetchDisputeReturns();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.role, token, fetchReturnRequests, fetchDisputeReturns]);
+  }, [user?.role, token, fetchReturnRequests, fetchDisputeReturns, fetchPlatformAnalytics]);
 
   const handleVerify = async (vendorId: string, status: 'approved' | 'rejected') => {
     if (!token) return;
@@ -270,18 +311,54 @@ const fetchAllProducts = async () => {
   const pendingReturnCount = returnRequests.filter((req) => req.returnRequestStatus === 'pending').length;
 
   const stats = [
-    { label: 'Total Users', value: allUsers.length.toString(), icon: Users, change: '' },
-    { label: 'Pending KYC', value: pendingKycUsers.length.toString(), icon: Shield, change: `${pendingKycUsers.length} awaiting approval` },
-    { label: 'Pending Vendors', value: pendingVendors.length.toString(), icon: UserCheck, change: `${pendingVendors.length} awaiting review` },
-    { label: 'Total Products', value: allProducts.length.toString(), icon: Package, change: 'Across all vendors' },
-    { label: 'Platform Revenue', value: 'NPR 12.5L', icon: DollarSign, change: '+18% growth' },
-    { label: 'Pending Returns', value: pendingReturnCount.toString(), icon: RotateCcw, change: 'Awaiting vendor review' },
-    { label: 'Active Disputes', value: disputeReturns.length.toString(), icon: AlertTriangle, change: 'Vendor rejections' },
-  ];
-
-  const recentDisputes = [
-    { id: 'd1', user: 'John Doe', vendor: 'Tech Rentals Pro', product: 'MacBook Pro', status: 'open' },
-    { id: 'd2', user: 'Jane Smith', vendor: 'Camera World', product: 'Sony A7 IV', status: 'resolved' },
+    {
+      label: 'Total Users',
+      value: platformStats ? platformStats.totalUsers.toString() : allUsers.length.toString(),
+      icon: Users,
+      change: '',
+    },
+    {
+      label: 'Total Vendors',
+      value: platformStats ? platformStats.totalVendors.toString() : vendorUsers.length.toString(),
+      icon: UserCheck,
+      change: 'Vendors onboarded',
+    },
+    {
+      label: 'Total Products',
+      value: platformStats ? platformStats.totalProducts.toString() : allProducts.length.toString(),
+      icon: Package,
+      change: 'Listed across categories',
+    },
+    {
+      label: 'Active Rentals',
+      value: platformStats ? platformStats.activeRentals.toString() : '0',
+      icon: TrendingUp,
+      change: 'Currently rented',
+    },
+    {
+      label: 'Pending KYC',
+      value: pendingKycUsers.length.toString(),
+      icon: Shield,
+      change: `${pendingKycUsers.length} awaiting approval`,
+    },
+    {
+      label: 'Pending Returns',
+      value: platformStats ? platformStats.pendingReturns.toString() : pendingReturnCount.toString(),
+      icon: RotateCcw,
+      change: 'Awaiting vendor review',
+    },
+    {
+      label: 'Platform Revenue',
+      value: platformStats ? `NPR ${platformStats.totalRevenue.toFixed(2)}` : 'NPR 0',
+      icon: DollarSign,
+      change: 'Active + completed',
+    },
+    {
+      label: 'Active Disputes',
+      value: platformStats ? platformStats.disputes.toString() : disputeReturns.length.toString(),
+      icon: AlertTriangle,
+      change: 'Vendor rejections',
+    },
   ];
 
   const renderContent = () => {

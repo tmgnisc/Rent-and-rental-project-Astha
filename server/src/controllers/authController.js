@@ -2,7 +2,12 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { pool } = require('../config/db');
 const { ApiError } = require('../middleware/errorHandler');
-const { registerSchema, loginSchema, formatValidationError } = require('../validators/authValidator');
+const {
+  registerSchema,
+  loginSchema,
+  changePasswordSchema,
+  formatValidationError,
+} = require('../validators/authValidator');
 const { forgotPasswordSchema, resetPasswordSchema } = require('../validators/passwordValidator');
 const { generateToken } = require('../utils/token');
 const { mapUserRecord } = require('../utils/mappers');
@@ -242,10 +247,50 @@ const resetPassword = async (req, res, next) => {
   }
 };
 
+const changePassword = async (req, res, next) => {
+  const { error, value } = changePasswordSchema.validate(req.body, { abortEarly: false });
+  if (error) {
+    return next(new ApiError(400, 'Validation failed', formatValidationError(error)));
+  }
+
+  try {
+    const [rows] = await pool.query('SELECT password_hash FROM users WHERE id = ? LIMIT 1', [req.user.id]);
+
+    if (rows.length === 0) {
+      throw new ApiError(404, 'User not found');
+    }
+
+    const currentMatch = await bcrypt.compare(value.currentPassword, rows[0].password_hash);
+    if (!currentMatch) {
+      throw new ApiError(400, 'Current password is incorrect');
+    }
+
+    if (value.currentPassword === value.newPassword) {
+      throw new ApiError(400, 'New password must be different from the current password');
+    }
+
+    const newHash = await bcrypt.hash(value.newPassword, 10);
+    await pool.query(
+      `UPDATE users
+       SET password_hash = ?, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [newHash, req.user.id]
+    );
+
+    res.json({
+      success: true,
+      message: 'Password updated successfully',
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   register,
   login,
   getProfile,
   forgotPassword,
   resetPassword,
+  changePassword,
 };
