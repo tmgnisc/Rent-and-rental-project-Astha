@@ -1,4 +1,52 @@
-import { useEffect, useState } from 'react';
+  const handleCreateRental = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!product) return;
+    if (!token) {
+      toast.error('Authentication expired. Please login again.');
+      navigate('/login');
+      return;
+    }
+
+    setCreatingIntent(true);
+    try {
+      const payload = {
+        productId: product.id,
+        startDate: rentForm.startDate || today,
+        days: rentForm.days,
+        deliveryAddress: rentForm.deliveryAddress,
+        contactPhone: rentForm.contactPhone,
+      };
+
+      const response = await apiRequest<RentalApiResponse>('/rentals', {
+        method: 'POST',
+        token,
+        body: payload,
+      });
+
+      setRentalId(response.rental.id);
+      setClientSecret(response.clientSecret);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to start rental');
+    } finally {
+      setCreatingIntent(false);
+    }
+  };
+
+  const handlePaymentSuccess = async () => {
+    if (!rentalId || !token) return;
+    try {
+      await apiRequest(`/rentals/${rentalId}/confirm`, {
+        method: 'POST',
+        token,
+      });
+      toast.success('Rental confirmed! Check your dashboard for details.');
+      setProduct((prev) => (prev ? { ...prev, status: 'rented' } : prev));
+      handleRentDialogChange(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to confirm rental');
+    }
+  };
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/store/store';
@@ -11,14 +59,68 @@ import { Product } from '@/store/slices/productsSlice';
 import { toast } from 'sonner';
 import { apiRequest } from '@/lib/api';
 import Footer from '@/components/Footer';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Elements } from '@stripe/react-stripe-js';
+import { stripePromise } from '@/lib/stripe';
+import RentalPaymentForm from '@/components/rent/RentalPaymentForm';
+
+type RentalFormState = {
+  startDate: string;
+  days: number;
+  deliveryAddress: string;
+  contactPhone: string;
+};
+
+type RentalApiResponse = {
+  success: boolean;
+  rental: {
+    id: string;
+    status: string;
+  };
+  clientSecret: string;
+};
 
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
+  const { isAuthenticated, user, token } = useSelector((state: RootState) => state.auth);
   const { products } = useSelector((state: RootState) => state.products);
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
+  const [rentModalOpen, setRentModalOpen] = useState(false);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [rentalId, setRentalId] = useState<string | null>(null);
+  const [creatingIntent, setCreatingIntent] = useState(false);
+  const [rentForm, setRentForm] = useState<RentalFormState>({
+    startDate: '',
+    days: 3,
+    deliveryAddress: '',
+    contactPhone: '',
+  });
+
+  const today = useMemo(() => new Date().toISOString().split('T')[0], []);
+
+  const resetRentalFlow = () => {
+    setClientSecret(null);
+    setRentalId(null);
+    setRentForm({
+      startDate: '',
+      days: 3,
+      deliveryAddress: '',
+      contactPhone: '',
+    });
+    setCreatingIntent(false);
+  };
 
   useEffect(() => {
     if (!id) {
@@ -50,6 +152,12 @@ const ProductDetail = () => {
     fetchProduct();
   }, [id, products]);
 
+useEffect(() => {
+  if (rentModalOpen && !rentForm.startDate) {
+    setRentForm((prev) => ({ ...prev, startDate: today }));
+  }
+}, [rentModalOpen, rentForm.startDate, today]);
+
   const handleRentNow = () => {
     if (!isAuthenticated) {
       toast.error('Please login to rent products');
@@ -61,8 +169,14 @@ const ProductDetail = () => {
       navigate('/dashboard/user');
       return;
     }
-    // In a real app, this would navigate to KYC/payment flow
-    toast.success('Rental process will be implemented soon!');
+    setRentModalOpen(true);
+  };
+
+  const handleRentDialogChange = (open: boolean) => {
+    setRentModalOpen(open);
+    if (!open) {
+      resetRentalFlow();
+    }
   };
 
   if (loading) {
@@ -102,6 +216,18 @@ const ProductDetail = () => {
         return 'bg-muted text-muted-foreground';
     }
   };
+
+  const rentalSummary = useMemo(() => {
+    if (!product) {
+      return { rentalCost: 0, total: 0 };
+    }
+
+    const rentalDays = rentForm.days > 0 ? rentForm.days : 1;
+    const rentalCost = Number(product.rentalPricePerDay) * rentalDays;
+    const total = rentalCost + Number(product.refundableDeposit || 0);
+
+    return { rentalCost, total, rentalDays };
+  }, [product, rentForm.days]);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -227,6 +353,127 @@ const ProductDetail = () => {
           </div>
         </div>
       </div>
+
+      <Dialog open={rentModalOpen} onOpenChange={handleRentDialogChange}>
+        <DialogContent className="sm:max-w-lg">
+          {!clientSecret ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>Reserve {product.name}</DialogTitle>
+                <DialogDescription>
+                  Provide a few rental details to calculate your total before payment.
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleCreateRental} className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="startDate">Start Date</Label>
+                    <Input
+                      id="startDate"
+                      type="date"
+                      min={today}
+                      value={rentForm.startDate}
+                      onChange={(event) =>
+                        setRentForm((prev) => ({ ...prev, startDate: event.target.value }))
+                      }
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="days">Rental Days</Label>
+                    <Input
+                      id="days"
+                      type="number"
+                      min={1}
+                      max={60}
+                      value={rentForm.days}
+                      onChange={(event) =>
+                        setRentForm((prev) => ({
+                          ...prev,
+                          days: Number(event.target.value) || 1,
+                        }))
+                      }
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="address">Delivery / Pickup Address</Label>
+                  <Textarea
+                    id="address"
+                    rows={3}
+                    value={rentForm.deliveryAddress}
+                    onChange={(event) =>
+                      setRentForm((prev) => ({ ...prev, deliveryAddress: event.target.value }))
+                    }
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="contactPhone">Contact Number</Label>
+                  <Input
+                    id="contactPhone"
+                    type="tel"
+                    value={rentForm.contactPhone}
+                    onChange={(event) =>
+                      setRentForm((prev) => ({ ...prev, contactPhone: event.target.value }))
+                    }
+                    required
+                  />
+                </div>
+
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm text-muted-foreground">
+                        ₹{product.rentalPricePerDay} × {rentalSummary.rentalDays} days
+                      </span>
+                      <span className="font-semibold">₹{rentalSummary.rentalCost}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                      <span>Refundable deposit</span>
+                      <span>₹{product.refundableDeposit}</span>
+                    </div>
+                    <Separator className="my-3" />
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold">Total due now</span>
+                      <span className="text-xl font-bold text-primary">₹{rentalSummary.total}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <DialogFooter>
+                  <Button type="submit" className="w-full" disabled={creatingIntent}>
+                    {creatingIntent ? 'Preparing payment...' : 'Continue to Payment'}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle>Complete Payment</DialogTitle>
+                <DialogDescription>
+                  Securely pay with your card to confirm this rental. Your deposit is fully refundable
+                  after the product is returned.
+                </DialogDescription>
+              </DialogHeader>
+              <Elements
+                stripe={stripePromise}
+                options={{
+                  clientSecret,
+                  appearance: { theme: 'stripe' },
+                }}
+              >
+                <RentalPaymentForm rentalId={rentalId!} onSuccess={handlePaymentSuccess} />
+              </Elements>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <Footer />
     </div>
   );

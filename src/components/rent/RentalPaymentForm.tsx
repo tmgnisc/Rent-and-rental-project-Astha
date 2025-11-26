@@ -4,11 +4,10 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
 type RentalPaymentFormProps = {
-  rentalId: string;
   onSuccess: () => Promise<void> | void;
 };
 
-const RentalPaymentForm = ({ rentalId, onSuccess }: RentalPaymentFormProps) => {
+const RentalPaymentForm = ({ onSuccess }: RentalPaymentFormProps) => {
   const stripe = useStripe();
   const elements = useElements();
   const [submitting, setSubmitting] = useState(false);
@@ -32,9 +31,8 @@ const RentalPaymentForm = ({ rentalId, onSuccess }: RentalPaymentFormProps) => {
 
     if (paymentIntent?.status === 'succeeded') {
       await onSuccess();
-      toast.success('Payment successful!');
     } else {
-      toast.message('Payment processing. Please wait...');
+      toast.message('Payment processing. Please wait and do not close this window.');
     }
 
     setSubmitting(false);
@@ -43,7 +41,7 @@ const RentalPaymentForm = ({ rentalId, onSuccess }: RentalPaymentFormProps) => {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <PaymentElement />
-      <Button type="submit" className="w-full" disabled={submitting}>
+      <Button type="submit" className="w-full" disabled={submitting || !stripe || !elements}>
         {submitting ? 'Processing...' : 'Pay & Confirm Rental'}
       </Button>
     </form>

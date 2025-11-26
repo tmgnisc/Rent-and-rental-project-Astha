@@ -1,4 +1,3 @@
-const { addDays } = require('date-fns');
 const { pool } = require('../config/db');
 const { ApiError } = require('../middleware/errorHandler');
 const { rentalSchema, formatValidationError } = require('../validators/rentalValidator');
@@ -44,7 +43,8 @@ const createRental = async (req, res, next) => {
       throw new ApiError(400, 'Invalid start date');
     }
 
-    const endDate = addDays(startDate, payload.days);
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + payload.days);
     const dailyCost = Number(product.rentalPricePerDay) * payload.days;
     const totalAmount = dailyCost + Number(product.refundableDeposit || 0);
 
