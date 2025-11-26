@@ -4,6 +4,7 @@ const { ApiError } = require('../middleware/errorHandler');
 const { rentalSchema, formatValidationError } = require('../validators/rentalValidator');
 const { mapProductRecord } = require('../utils/productMappers');
 const { mapRentalRecord, calculateRentalFinancials } = require('../utils/rentalMappers');
+const { uploadBufferToCloudinary } = require('../utils/uploadToCloudinary');
 const { stripeClient } = require('../config/stripe');
 const { stripe: stripeConfig } = require('../config/env');
 
@@ -161,6 +162,63 @@ const confirmRental = async (req, res, next) => {
   }
 };
 
+const requestRentalReturn = async (req, res, next) => {
+  const { id } = req.params;
+  const { note } = req.body;
+
+  try {
+    const [rows] = await pool.query(
+      `SELECT * FROM rentals WHERE id = ? AND user_id = ? LIMIT 1`,
+      [id, req.user.id]
+    );
+
+    if (rows.length === 0) {
+      throw new ApiError(404, 'Rental not found');
+    }
+
+    const rental = rows[0];
+
+    if (rental.status !== 'active') {
+      throw new ApiError(400, 'Only active rentals can request a return');
+    }
+
+    if (rental.return_request_status === 'pending') {
+      throw new ApiError(400, 'Return request already submitted');
+    }
+
+    if (!req.file) {
+      throw new ApiError(400, 'Product photo is required for return request');
+    }
+
+    const uploadResult = await uploadBufferToCloudinary(
+      req.file.buffer,
+      'rent-return/return-requests'
+    );
+
+    await pool.query(
+      `UPDATE rentals 
+       SET return_request_note = ?, 
+           return_request_image = ?, 
+           return_requested_at = CURRENT_TIMESTAMP,
+           return_request_status = 'pending',
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [note?.trim() || null, uploadResult.secure_url, rental.id]
+    );
+
+    const [updatedRows] = await pool.query(`SELECT * FROM rentals WHERE id = ? LIMIT 1`, [
+      rental.id,
+    ]);
+
+    res.json({
+      success: true,
+      rental: mapRentalRecord(updatedRows[0]),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 const getUserRentals = async (req, res, next) => {
   try {
     const [rows] = await pool.query(
@@ -303,6 +361,10 @@ const markRentalReturned = async (req, res, next) => {
 
   try {
     const rental = await fetchRentalForVendor(id, req.user.id);
+    if (rental.return_request_status !== 'pending') {
+      throw new ApiError(400, 'No pending return request for this rental');
+    }
+
     const settlement = calculateRentalFinancials(rental, new Date());
 
     await connection.beginTransaction();
@@ -313,6 +375,7 @@ const markRentalReturned = async (req, res, next) => {
        SET returned_at = CURRENT_TIMESTAMP, 
            status = 'completed',
            fine_amount = ?, 
+           return_request_status = 'approved',
            updated_at = CURRENT_TIMESTAMP
        WHERE id = ?`,
       [settlement.calculatedFine, id]

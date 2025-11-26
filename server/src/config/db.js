@@ -89,6 +89,10 @@ const createRentalsTable = `
     returned_at DATETIME NULL,
     fine_amount DECIMAL(10,2) DEFAULT 0,
     daily_fine DECIMAL(10,2) DEFAULT 100,
+    return_request_note TEXT,
+    return_request_image VARCHAR(500),
+    return_requested_at DATETIME,
+    return_request_status ENUM('none','pending','approved','rejected') DEFAULT 'none',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_rentals_user_id FOREIGN KEY (user_id)
@@ -266,6 +270,13 @@ const migrateRentalsTable = async (connection) => {
       { name: 'returned_at', definition: 'DATETIME NULL' },
       { name: 'fine_amount', definition: 'DECIMAL(10,2) DEFAULT 0' },
       { name: 'daily_fine', definition: 'DECIMAL(10,2) DEFAULT 100' },
+      { name: 'return_request_note', definition: 'TEXT' },
+      { name: 'return_request_image', definition: 'VARCHAR(500)' },
+      { name: 'return_requested_at', definition: 'DATETIME' },
+      {
+        name: 'return_request_status',
+        definition: `ENUM('none','pending','approved','rejected') DEFAULT 'none'`,
+      },
     ];
 
     for (const column of columnsToAdd) {
