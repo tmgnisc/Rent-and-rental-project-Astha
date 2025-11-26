@@ -11,6 +11,8 @@ export interface User {
   vendorDocumentUrl?: string | null;
   verificationStatus?: 'pending' | 'approved' | 'rejected' | null;
   documentVerifiedBy?: string | null;
+  kycDocumentUrl?: string | null;
+  kycStatus?: 'unverified' | 'pending' | 'approved' | null;
 }
 
 interface AuthState {

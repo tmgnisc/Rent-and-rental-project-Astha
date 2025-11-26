@@ -15,7 +15,7 @@ import Footer from '@/components/Footer';
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
+  const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
   const { products } = useSelector((state: RootState) => state.products);
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
@@ -54,6 +54,11 @@ const ProductDetail = () => {
     if (!isAuthenticated) {
       toast.error('Please login to rent products');
       navigate('/login');
+      return;
+    }
+    if (!user || user.kycStatus !== 'approved') {
+      toast.error('Please complete your KYC verification to rent products');
+      navigate('/dashboard/user');
       return;
     }
     // In a real app, this would navigate to KYC/payment flow

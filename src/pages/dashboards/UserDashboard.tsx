@@ -1,56 +1,123 @@
-import { useSelector } from 'react-redux';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '@/store/store';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Package, Clock, CheckCircle, AlertCircle, History } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Package, Clock, CheckCircle, AlertCircle, History, Upload, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { apiRequest } from '@/lib/api';
+import { toast } from 'sonner';
+import { setCredentials } from '@/store/slices/authSlice';
 
 const UserDashboard = () => {
-  const { user } = useSelector((state: RootState) => state.auth);
+  const dispatch = useDispatch();
   const navigate = useNavigate();
+  const { user, token } = useSelector((state: RootState) => state.auth);
+  const [kycStatus, setKycStatus] = useState(user?.kycStatus || 'unverified');
+  const [kycDocumentUrl, setKycDocumentUrl] = useState<string | null>(user?.kycDocumentUrl || null);
+  const [kycLoading, setKycLoading] = useState(false);
+  const [kycUploading, setKycUploading] = useState(false);
+  const [kycFile, setKycFile] = useState<File | null>(null);
+  const [kycPreview, setKycPreview] = useState<string>('');
+  const objectUrlRef = useRef<string | null>(null);
 
-  // Mock rental data
-  const mockRentals = [
-    {
-      id: 'r1',
-      productName: 'MacBook Pro 16" M3',
-      status: 'active',
-      startDate: '2025-01-15',
-      endDate: '2025-01-30',
-      dailyRate: 50,
-      image: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400&q=80',
-    },
-    {
-      id: 'r2',
-      productName: 'Sony A7 IV Camera',
-      status: 'pending',
-      startDate: '2025-02-01',
-      endDate: '2025-02-07',
-      dailyRate: 40,
-      image: 'https://images.unsplash.com/photo-1606980496917-90f44d3d1a34?w=400&q=80',
-    },
-  ];
+  const fetchKycStatus = useCallback(async () => {
+    if (!token) return;
+    setKycLoading(true);
+    try {
+      const data = await apiRequest<{ success: boolean; kyc: { status: string; documentUrl: string | null } }>(
+        '/users/kyc',
+        { token }
+      );
+      setKycStatus(data.kyc.status || 'unverified');
+      setKycDocumentUrl(data.kyc.documentUrl || null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to fetch KYC status');
+    } finally {
+      setKycLoading(false);
+    }
+  }, [token]);
 
-  const stats = [
-    { label: 'Active Rentals', value: '1', icon: Package, color: 'text-primary' },
-    { label: 'Pending', value: '1', icon: Clock, color: 'text-warning' },
-    { label: 'Completed', value: '5', icon: CheckCircle, color: 'text-success' },
-    { label: 'Total Spent', value: '₹12,450', icon: History, color: 'text-accent' },
-  ];
+  useEffect(() => {
+    fetchKycStatus();
+  }, [fetchKycStatus]);
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'active':
-        return <Badge className="bg-success text-success-foreground">Active</Badge>;
-      case 'pending':
-        return <Badge className="bg-warning text-warning-foreground">Pending</Badge>;
-      case 'completed':
-        return <Badge variant="outline">Completed</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
+  useEffect(() => {
+    return () => {
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+      }
+    };
+  }, []);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = null;
+    }
+    const previewUrl = URL.createObjectURL(file);
+    objectUrlRef.current = previewUrl;
+    setKycPreview(previewUrl);
+    setKycFile(file);
+  };
+
+  const handleKycUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!kycFile) {
+      toast.error('Please select a document image');
+      return;
+    }
+    if (!token) return;
+    setKycUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('document', kycFile);
+      const data = await apiRequest<{ success: boolean; message: string; kyc: { status: string; documentUrl: string | null }; user: any }>(
+        '/users/kyc',
+        {
+          method: 'POST',
+          body: formData,
+          token,
+        }
+      );
+      toast.success(data.message);
+      setKycStatus(data.kyc.status);
+      setKycDocumentUrl(data.kyc.documentUrl || null);
+      setKycFile(null);
+      setKycPreview('');
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = null;
+      }
+      if (data.user) {
+        dispatch(setCredentials({ user: data.user, token }));
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to upload KYC document');
+    } finally {
+      setKycUploading(false);
     }
   };
+
+  const navigateToProducts = () => navigate('/products');
+
+  const isKycApproved = kycStatus === 'approved';
+
+  const stats = [
+    {
+      label: 'KYC Status',
+      value: kycStatus ? kycStatus.charAt(0).toUpperCase() + kycStatus.slice(1) : 'Unverified',
+      icon: ShieldCheck,
+      color: isKycApproved ? 'text-success' : 'text-warning',
+    },
+    { label: 'Active Rentals', value: '0', icon: Package, color: 'text-primary' },
+    { label: 'Pending Requests', value: '0', icon: Clock, color: 'text-warning' },
+    { label: 'Total Spent', value: '₹0', icon: History, color: 'text-accent' },
+  ];
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -61,23 +128,72 @@ const UserDashboard = () => {
           <p className="text-muted-foreground">Manage your rentals and explore new products</p>
         </div>
 
-        {/* KYC Alert */}
-        {!user?.isVerified && (
-          <Card className="mb-6 border-warning bg-warning/5">
-            <CardContent className="p-4 flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-warning mt-0.5" />
-              <div className="flex-1">
-                <p className="font-medium">Complete your KYC verification</p>
-                <p className="text-sm text-muted-foreground">
-                  Upload your documents to start renting products
-                </p>
+        <Card className="mb-8 border-muted">
+          <CardHeader className="flex flex-col gap-2">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div>
+                <CardTitle>KYC Verification</CardTitle>
+                <CardDescription>
+                  {isKycApproved
+                    ? 'Your identity has been verified. You can rent products without limitations.'
+                    : 'Complete your KYC to unlock rentals and ensure a safe marketplace experience.'}
+                </CardDescription>
               </div>
-              <Button size="sm" variant="outline">
-                Verify Now
-              </Button>
-            </CardContent>
-          </Card>
-        )}
+              <Badge
+                className={
+                  isKycApproved
+                    ? 'bg-success text-success-foreground'
+                    : kycStatus === 'pending'
+                      ? 'bg-warning text-warning-foreground'
+                      : 'bg-muted text-foreground'
+                }
+              >
+                {kycStatus ? kycStatus.charAt(0).toUpperCase() + kycStatus.slice(1) : 'Unverified'}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {isKycApproved ? (
+              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                <ShieldCheck className="h-5 w-5 text-success" />
+                <span>Your KYC document has been approved.</span>
+              </div>
+            ) : (
+              <form onSubmit={handleKycUpload} className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Upload a clear photo of a government-issued ID (Aadhaar, Passport, Driver’s License). Supported formats: JPG, PNG. Max size 5MB.
+                </p>
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  disabled={kycUploading}
+                />
+                {(kycPreview || kycDocumentUrl) && (
+                  <div className="mt-2">
+                    <p className="text-xs text-muted-foreground mb-2">Document Preview</p>
+                    <img
+                      src={kycPreview || (kycDocumentUrl as string)}
+                      alt="KYC document preview"
+                      className="w-40 h-40 object-cover rounded-lg border"
+                    />
+                  </div>
+                )}
+                <div className="flex items-center gap-3">
+                  <Button type="submit" disabled={kycUploading || !kycFile} className="gap-2">
+                    <Upload className="h-4 w-4" />
+                    {kycUploading ? 'Uploading...' : 'Upload Document'}
+                  </Button>
+                  {!kycFile && (
+                    <p className="text-xs text-muted-foreground">
+                      Select a file to enable upload.
+                    </p>
+                  )}
+                </div>
+              </form>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -105,44 +221,14 @@ const UserDashboard = () => {
                 <CardTitle>My Rentals</CardTitle>
                 <CardDescription>Track your current and upcoming rentals</CardDescription>
               </div>
-              <Button variant="outline" onClick={() => navigate('/products')}>
+              <Button variant="outline" onClick={navigateToProducts}>
                 Browse Products
               </Button>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {mockRentals.map((rental) => (
-                <div 
-                  key={rental.id}
-                  className="flex gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                >
-                  <img
-                    src={rental.image}
-                    alt={rental.productName}
-                    className="w-24 h-24 object-cover rounded-lg"
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <h3 className="font-semibold">{rental.productName}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {rental.startDate} to {rental.endDate}
-                        </p>
-                      </div>
-                      {getStatusBadge(rental.status)}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm">
-                        <span className="font-semibold text-primary">₹{rental.dailyRate}</span>/day
-                      </p>
-                      <Button size="sm" variant="outline">
-                        View Details
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <div className="text-sm text-muted-foreground text-center py-6">
+              Rental history will appear here once you book your first item.
             </div>
           </CardContent>
         </Card>
@@ -154,7 +240,7 @@ const UserDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <Button variant="outline" className="h-auto py-4 flex-col gap-2">
+              <Button variant="outline" className="h-auto py-4 flex-col gap-2" onClick={navigateToProducts}>
                 <Package className="h-5 w-5" />
                 <span className="text-sm">Browse Products</span>
               </Button>
