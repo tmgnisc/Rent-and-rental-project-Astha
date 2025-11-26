@@ -3,7 +3,7 @@ const { pool } = require('../config/db');
 const { ApiError } = require('../middleware/errorHandler');
 const { rentalSchema, formatValidationError } = require('../validators/rentalValidator');
 const { mapProductRecord } = require('../utils/productMappers');
-const { mapRentalRecord } = require('../utils/rentalMappers');
+const { mapRentalRecord, calculateRentalFinancials } = require('../utils/rentalMappers');
 const { stripeClient } = require('../config/stripe');
 const { stripe: stripeConfig } = require('../config/env');
 
@@ -61,6 +61,8 @@ const createRental = async (req, res, next) => {
 
     const rentalId = randomUUID();
 
+    const dailyFine = 100;
+
     await connection.query(
       `INSERT INTO rentals (
         id,
@@ -72,8 +74,9 @@ const createRental = async (req, res, next) => {
         total_amount,
         payment_intent_id,
         delivery_address,
-        contact_phone
-      ) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)`,
+        contact_phone,
+        daily_fine
+      ) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)`,
       [
         rentalId,
         req.user.id,
@@ -84,6 +87,7 @@ const createRental = async (req, res, next) => {
         paymentIntent.id,
         payload.deliveryAddress,
         payload.contactPhone,
+        dailyFine,
       ]
     );
 
@@ -208,9 +212,12 @@ const getVendorAnalytics = async (req, res, next) => {
         if (rental.status === 'pending') acc.pendingRentals += 1;
         if (rental.status === 'completed') acc.completedRentals += 1;
         if (rental.status === 'cancelled') acc.cancelledRentals += 1;
+        const financials = calculateRentalFinancials(rental);
+        if (financials.isOverdue) acc.overdueRentals += 1;
         if (['active', 'completed'].includes(rental.status)) {
           acc.totalRevenue += Number(rental.total_amount || 0);
         }
+        acc.outstandingFines += financials.outstandingFine;
         acc.uniqueCustomers.add(rental.user_id);
         return acc;
       },
@@ -221,6 +228,8 @@ const getVendorAnalytics = async (req, res, next) => {
         completedRentals: 0,
         cancelledRentals: 0,
         totalRevenue: 0,
+        outstandingFines: 0,
+        overdueRentals: 0,
         uniqueCustomers: new Set(),
       }
     );
@@ -232,6 +241,8 @@ const getVendorAnalytics = async (req, res, next) => {
       completedRentals: summaryAccumulator.completedRentals,
       cancelledRentals: summaryAccumulator.cancelledRentals,
       totalRevenue: Number(summaryAccumulator.totalRevenue.toFixed(2)),
+      outstandingFines: Number(summaryAccumulator.outstandingFines.toFixed(2)),
+      overdueRentals: summaryAccumulator.overdueRentals,
       uniqueCustomers: summaryAccumulator.uniqueCustomers.size,
     };
 
@@ -245,10 +256,99 @@ const getVendorAnalytics = async (req, res, next) => {
   }
 };
 
+const fetchRentalForVendor = async (rentalId, vendorId) => {
+  const [rows] = await pool.query(
+    `SELECT r.*, p.vendor_id 
+     FROM rentals r 
+     INNER JOIN products p ON p.id = r.product_id 
+     WHERE r.id = ? AND p.vendor_id = ? 
+     LIMIT 1`,
+    [rentalId, vendorId]
+  );
+
+  if (rows.length === 0) {
+    throw new ApiError(404, 'Rental not found for this vendor');
+  }
+
+  return rows[0];
+};
+
+const markRentalHandedOver = async (req, res, next) => {
+  const { id } = req.params;
+
+  try {
+    await fetchRentalForVendor(id, req.user.id);
+    await pool.query(
+      `UPDATE rentals 
+       SET handed_over_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP 
+       WHERE id = ?`,
+      [id]
+    );
+
+    const [rows] = await pool.query(`SELECT * FROM rentals WHERE id = ? LIMIT 1`, [id]);
+
+    res.json({
+      success: true,
+      rental: mapRentalRecord(rows[0]),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const markRentalReturned = async (req, res, next) => {
+  const { id } = req.params;
+  const connection = await pool.getConnection();
+  let transactionStarted = false;
+
+  try {
+    const rental = await fetchRentalForVendor(id, req.user.id);
+    const settlement = calculateRentalFinancials(rental, new Date());
+
+    await connection.beginTransaction();
+    transactionStarted = true;
+
+    await connection.query(
+      `UPDATE rentals 
+       SET returned_at = CURRENT_TIMESTAMP, 
+           status = 'completed',
+           fine_amount = ?, 
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [settlement.calculatedFine, id]
+    );
+
+    await connection.query(
+      `UPDATE products 
+       SET status = 'available', updated_at = CURRENT_TIMESTAMP 
+       WHERE id = ?`,
+      [rental.product_id]
+    );
+
+    await connection.commit();
+
+    const [rows] = await pool.query(`SELECT * FROM rentals WHERE id = ? LIMIT 1`, [id]);
+
+    res.json({
+      success: true,
+      rental: mapRentalRecord(rows[0]),
+    });
+  } catch (err) {
+    if (transactionStarted) {
+      await connection.rollback();
+    }
+    next(err);
+  } finally {
+    connection.release();
+  }
+};
+
 module.exports = {
   createRental,
   confirmRental,
   getUserRentals,
   getVendorAnalytics,
+  markRentalHandedOver,
+  markRentalReturned,
 };
 

@@ -25,8 +25,15 @@ type UserRental = {
   status: 'pending' | 'active' | 'completed' | 'cancelled';
   startDate: string;
   endDate: string | null;
+  dueDate: string | null;
   totalAmount: number;
   createdAt: string;
+  handedOverAt: string | null;
+  returnedAt: string | null;
+  overdueDays: number;
+  isOverdue: boolean;
+  outstandingFine: number;
+  dailyFine: number;
   product: RentalProduct | null;
 };
 
@@ -316,15 +323,25 @@ const UserDashboard = () => {
                           className="w-16 h-16 rounded-lg object-cover"
                         />
                       )}
-                      <div>
+                      <div className="space-y-1">
                         <p className="font-semibold">{rental.product?.name || 'Product'}</p>
                         <p className="text-xs text-muted-foreground capitalize">
                           {rental.product?.category || 'category'}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          Start: {new Date(rental.startDate).toLocaleDateString()}
-                          {rental.endDate && ` • Return: ${new Date(rental.endDate).toLocaleDateString()}`}
+                          Rental window: {new Date(rental.startDate).toLocaleDateString()}
+                          {rental.dueDate && ` → ${new Date(rental.dueDate).toLocaleDateString()}`}
                         </p>
+                        {rental.handedOverAt && (
+                          <p className="text-xs text-muted-foreground">
+                            Handed over on {new Date(rental.handedOverAt).toLocaleDateString()}
+                          </p>
+                        )}
+                        {rental.returnedAt && (
+                          <p className="text-xs text-muted-foreground">
+                            Returned on {new Date(rental.returnedAt).toLocaleDateString()}
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div className="text-right space-y-2">
@@ -343,6 +360,12 @@ const UserDashboard = () => {
                       <p className="text-sm font-semibold text-primary">
                         ₹{Number(rental.totalAmount || 0).toFixed(2)}
                       </p>
+                      {rental.isOverdue && (
+                        <p className="text-xs text-destructive font-semibold">
+                          Overdue by {rental.overdueDays} day(s). Fine ₹
+                          {Number(rental.outstandingFine || 0).toFixed(2)}
+                        </p>
+                      )}
                     </div>
                   </div>
                 ))}

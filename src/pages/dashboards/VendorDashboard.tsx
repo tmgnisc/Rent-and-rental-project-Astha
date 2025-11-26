@@ -51,6 +51,7 @@ type VendorRental = {
   status: 'pending' | 'active' | 'completed' | 'cancelled';
   startDate: string;
   endDate: string | null;
+  dueDate: string | null;
   totalAmount: number;
   createdAt: string;
   product: {
@@ -64,6 +65,12 @@ type VendorRental = {
     name: string | null;
     email: string | null;
   } | null;
+  handedOverAt: string | null;
+  returnedAt: string | null;
+  overdueDays: number;
+  isOverdue: boolean;
+  outstandingFine: number;
+  dailyFine: number;
 };
 
 type VendorAnalyticsSummary = {
@@ -74,6 +81,8 @@ type VendorAnalyticsSummary = {
   cancelledRentals: number;
   totalRevenue: number;
   uniqueCustomers: number;
+  outstandingFines: number;
+  overdueRentals: number;
 };
 
 const VendorDashboard = () => {
@@ -89,6 +98,7 @@ const VendorDashboard = () => {
   const [rentals, setRentals] = useState<VendorRental[]>([]);
   const [analyticsSummary, setAnalyticsSummary] = useState<VendorAnalyticsSummary | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const fetchProducts = useCallback(async () => {
     if (!token) return;
@@ -174,6 +184,40 @@ const VendorDashboard = () => {
   const handleAddClick = () => {
     setEditingProduct(null);
     setActiveView('add-product');
+  };
+
+  const handleHandover = async (rentalId: string) => {
+    if (!token) return;
+    setActionLoading(`handover-${rentalId}`);
+    try {
+      await apiRequest<{ success: boolean }>(`/rentals/${rentalId}/handover`, {
+        method: 'PATCH',
+        token,
+      });
+      toast.success('Rental marked as handed over');
+      await fetchAnalytics();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update rental');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleReturn = async (rentalId: string) => {
+    if (!token) return;
+    setActionLoading(`return-${rentalId}`);
+    try {
+      await apiRequest<{ success: boolean }>(`/rentals/${rentalId}/return`, {
+        method: 'PATCH',
+        token,
+      });
+      toast.success('Rental marked as returned');
+      await fetchAnalytics();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to mark as returned');
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const fetchAnalytics = useCallback(async () => {
@@ -425,7 +469,7 @@ const VendorDashboard = () => {
               <p className="text-muted-foreground">Track your business performance</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
               <Card>
                 <CardHeader className="pb-2">
                   <CardDescription>Total Rentals</CardDescription>
@@ -463,6 +507,19 @@ const VendorDashboard = () => {
                   Revenue from confirmed & completed rentals
                 </CardContent>
               </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardDescription>Outstanding Fines</CardDescription>
+                  <CardTitle className="text-3xl">
+                    {analyticsSummary ? `₹${analyticsSummary.outstandingFines.toFixed(2)}` : '₹0.00'}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-sm text-muted-foreground">
+                  {analyticsSummary
+                    ? `${analyticsSummary.overdueRentals} overdue rentals`
+                    : 'No pending dues'}
+                </CardContent>
+              </Card>
             </div>
 
             <Card>
@@ -480,9 +537,9 @@ const VendorDashboard = () => {
                     {analyticsRentals.map((rental) => (
                       <div
                         key={rental.id}
-                        className="flex flex-col gap-2 border rounded-lg p-4 md:flex-row md:items-center md:justify-between"
+                        className="flex flex-col gap-3 border rounded-lg p-4 md:flex-row md:items-center md:justify-between"
                       >
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-start gap-4">
                           {rental.product?.image && (
                             <img
                               src={rental.product.image}
@@ -490,19 +547,28 @@ const VendorDashboard = () => {
                               className="w-14 h-14 rounded-lg object-cover"
                             />
                           )}
-                          <div>
+                          <div className="space-y-1">
                             <p className="font-semibold">{rental.product?.name || 'Product'}</p>
                             <p className="text-xs text-muted-foreground">
-                              Booked on {new Date(rental.createdAt).toLocaleDateString()}
+                              Due by{' '}
+                              {rental.dueDate
+                                ? new Date(rental.dueDate).toLocaleDateString()
+                                : 'N/A'}
                             </p>
                             {rental.customer && (
                               <p className="text-xs text-muted-foreground">
-                                Customer: {rental.customer.name || 'N/A'}
+                                Customer: {rental.customer.name || rental.customer.email}
+                              </p>
+                            )}
+                            {rental.isOverdue && (
+                              <p className="text-xs text-destructive font-semibold">
+                                Overdue by {rental.overdueDays} day(s). Fine ₹
+                                {Number(rental.outstandingFine || 0).toFixed(2)}
                               </p>
                             )}
                           </div>
                         </div>
-                        <div className="text-right space-y-1">
+                        <div className="text-right space-y-2">
                           <Badge
                             variant={
                               rental.status === 'completed'
@@ -518,6 +584,27 @@ const VendorDashboard = () => {
                           <p className="text-sm font-semibold text-primary">
                             ₹{Number(rental.totalAmount || 0).toFixed(2)}
                           </p>
+                          <div className="flex flex-wrap justify-end gap-2">
+                            {rental.status === 'active' && !rental.handedOverAt && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleHandover(rental.id)}
+                                disabled={actionLoading === `handover-${rental.id}`}
+                              >
+                                {actionLoading === `handover-${rental.id}` ? 'Updating...' : 'Mark handed'}
+                              </Button>
+                            )}
+                            {rental.status === 'active' && rental.handedOverAt && !rental.returnedAt && (
+                              <Button
+                                size="sm"
+                                onClick={() => handleReturn(rental.id)}
+                                disabled={actionLoading === `return-${rental.id}`}
+                              >
+                                {actionLoading === `return-${rental.id}` ? 'Saving...' : 'Mark returned'}
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))}

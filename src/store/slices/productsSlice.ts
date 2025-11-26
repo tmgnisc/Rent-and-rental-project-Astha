@@ -24,12 +24,16 @@ interface ProductsState {
   products: Product[];
   selectedCategory: ProductCategory | 'all';
   loading: boolean;
+  searchTerm: string;
+  maxPriceFilter: number | null;
 }
 
 const initialState: ProductsState = {
   products: [],
   selectedCategory: 'all',
   loading: false,
+  searchTerm: '',
+  maxPriceFilter: null,
 };
 
 const productsSlice = createSlice({
@@ -45,8 +49,15 @@ const productsSlice = createSlice({
     setLoading: (state, action: PayloadAction<boolean>) => {
       state.loading = action.payload;
     },
+    setSearchTerm: (state, action: PayloadAction<string>) => {
+      state.searchTerm = action.payload;
+    },
+    setMaxPriceFilter: (state, action: PayloadAction<number | null>) => {
+      state.maxPriceFilter = action.payload;
+    },
   },
 });
 
-export const { setProducts, setCategory, setLoading } = productsSlice.actions;
+export const { setProducts, setCategory, setLoading, setSearchTerm, setMaxPriceFilter } =
+  productsSlice.actions;
 export default productsSlice.reducer;

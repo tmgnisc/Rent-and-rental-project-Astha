@@ -85,6 +85,10 @@ const createRentalsTable = `
     payment_intent_id VARCHAR(255),
     delivery_address VARCHAR(255),
     contact_phone VARCHAR(20),
+    handed_over_at DATETIME NULL,
+    returned_at DATETIME NULL,
+    fine_amount DECIMAL(10,2) DEFAULT 0,
+    daily_fine DECIMAL(10,2) DEFAULT 100,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_rentals_user_id FOREIGN KEY (user_id)
@@ -258,6 +262,10 @@ const migrateRentalsTable = async (connection) => {
       { name: 'payment_intent_id', definition: 'VARCHAR(255)' },
       { name: 'delivery_address', definition: 'VARCHAR(255)' },
       { name: 'contact_phone', definition: 'VARCHAR(20)' },
+      { name: 'handed_over_at', definition: 'DATETIME NULL' },
+      { name: 'returned_at', definition: 'DATETIME NULL' },
+      { name: 'fine_amount', definition: 'DECIMAL(10,2) DEFAULT 0' },
+      { name: 'daily_fine', definition: 'DECIMAL(10,2) DEFAULT 100' },
     ];
 
     for (const column of columnsToAdd) {
