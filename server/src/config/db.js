@@ -82,6 +82,9 @@ const createRentalsTable = `
     end_date DATE,
     status ENUM('pending','active','completed','cancelled') NOT NULL DEFAULT 'pending',
     total_amount DECIMAL(10,2),
+    payment_intent_id VARCHAR(255),
+    delivery_address VARCHAR(255),
+    contact_phone VARCHAR(20),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_rentals_user_id FOREIGN KEY (user_id)
@@ -249,6 +252,34 @@ const migrateUsersTable = async (connection) => {
   }
 };
 
+const migrateRentalsTable = async (connection) => {
+  try {
+    const columnsToAdd = [
+      { name: 'payment_intent_id', definition: 'VARCHAR(255)' },
+      { name: 'delivery_address', definition: 'VARCHAR(255)' },
+      { name: 'contact_phone', definition: 'VARCHAR(20)' },
+    ];
+
+    for (const column of columnsToAdd) {
+      // eslint-disable-next-line no-await-in-loop
+      const [existing] = await connection.query(
+        `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
+         WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'rentals' AND COLUMN_NAME = ?`,
+        [db.database, column.name]
+      );
+      if (existing.length === 0) {
+        // eslint-disable-next-line no-await-in-loop
+        await connection.query(
+          `ALTER TABLE rentals ADD COLUMN ${column.name} ${column.definition}`
+        );
+      }
+    }
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.warn('⚠️  Rentals migration warning:', error.message);
+  }
+};
+
 const seedSuperAdmin = async (connection) => {
   const [existing] = await connection.query(
     "SELECT id FROM users WHERE role = 'superadmin' LIMIT 1"
@@ -280,6 +311,7 @@ const initDatabase = async () => {
     await connection.query(createRentalsTable);
     await migrateUsersTable(connection);
     await migrateProductsTable(connection);
+    await migrateRentalsTable(connection);
     await seedSuperAdmin(connection);
     // eslint-disable-next-line no-console
     console.info('✅ Database tables are ready.');
