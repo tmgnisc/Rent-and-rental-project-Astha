@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Laptop, Shirt, Home, Dumbbell, Shield, Clock, DollarSign, Sparkles } from 'lucide-react';
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { toast } from 'sonner';
 import { apiRequest } from '@/lib/api';
@@ -16,13 +16,7 @@ const Landing = () => {
   const dispatch = useDispatch();
   const { products, loading } = useSelector((state: RootState) => state.products);
 
-  useEffect(() => {
-    if (products.length === 0) {
-      loadFeaturedProducts();
-    }
-  }, [dispatch, products.length]);
-
-  const loadFeaturedProducts = async () => {
+  const loadFeaturedProducts = useCallback(async () => {
     dispatch(setLoading(true));
     try {
       const query = new URLSearchParams({ status: 'available', limit: '12' }).toString();
@@ -35,7 +29,13 @@ const Landing = () => {
     } finally {
       dispatch(setLoading(false));
     }
-  };
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (products.length === 0) {
+      loadFeaturedProducts();
+    }
+  }, [loadFeaturedProducts, products.length]);
 
   const featuredProducts = products.filter(p => p.status === 'available').slice(0, 4);
 

@@ -8,20 +8,47 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Star, MapPin, Shield, Clock, DollarSign, ArrowLeft } from 'lucide-react';
 import { Product } from '@/store/slices/productsSlice';
-import { mockProducts } from '@/data/mockProducts';
 import { toast } from 'sonner';
+import { apiRequest } from '@/lib/api';
 import Footer from '@/components/Footer';
 
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { isAuthenticated } = useSelector((state: RootState) => state.auth);
+  const { products } = useSelector((state: RootState) => state.products);
   const [product, setProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const foundProduct = mockProducts.find(p => p.id === id);
-    setProduct(foundProduct || null);
-  }, [id]);
+    if (!id) {
+      setProduct(null);
+      setLoading(false);
+      return;
+    }
+
+    const existingProduct = products.find((p) => p.id === id);
+    if (existingProduct) {
+      setProduct(existingProduct);
+      setLoading(false);
+      return;
+    }
+
+    const fetchProduct = async () => {
+      setLoading(true);
+      try {
+        const data = await apiRequest<{ success: boolean; product: Product }>(`/public/products/${id}`);
+        setProduct(data.product);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Failed to load product');
+        setProduct(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProduct();
+  }, [id, products]);
 
   const handleRentNow = () => {
     if (!isAuthenticated) {
@@ -33,13 +60,27 @@ const ProductDetail = () => {
     toast.success('Rental process will be implemented soon!');
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-muted-foreground">Loading product...</p>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
   if (!product) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">Product not found</h2>
-          <Button onClick={() => navigate('/products')}>Back to Products</Button>
+      <div className="min-h-screen flex flex-col">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold mb-4">Product not found</h2>
+            <Button onClick={() => navigate('/products')}>Back to Products</Button>
+          </div>
         </div>
+        <Footer />
       </div>
     );
   }

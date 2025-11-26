@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams } from 'react-router-dom';
 import { RootState } from '@/store/store';
@@ -14,23 +14,24 @@ const Products = () => {
   const dispatch = useDispatch();
   const { products, selectedCategory, loading } = useSelector((state: RootState) => state.products);
 
-  useEffect(() => {
-    if (products.length === 0) {
-      loadProducts();
-    }
-  }, [dispatch, products.length]);
-
-  const loadProducts = async () => {
+  const loadProducts = useCallback(async () => {
     dispatch(setLoading(true));
     try {
-      const data = await apiRequest<{ success: boolean; products: Product[] }>('/public/products');
+      const query = new URLSearchParams({ status: 'available' }).toString();
+      const data = await apiRequest<{ success: boolean; products: Product[] }>(`/public/products?${query}`);
       dispatch(setProducts(data.products));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to load products');
     } finally {
       dispatch(setLoading(false));
     }
-  };
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (products.length === 0) {
+      loadProducts();
+    }
+  }, [loadProducts, products.length]);
 
   useEffect(() => {
     if (category) {
@@ -53,13 +54,17 @@ const Products = () => {
           <div className="mb-8">
             <h1 className="text-3xl md:text-4xl font-bold mb-2">{categoryTitle}</h1>
             <p className="text-muted-foreground">
-              Browse our collection of {filteredProducts.length} products
+              {loading ? 'Loading our latest rentals...' : `Browse our collection of ${filteredProducts.length} products`}
             </p>
           </div>
 
           <CategoryFilter />
 
-          {filteredProducts.length === 0 ? (
+          {loading ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground text-lg">Loading products...</p>
+            </div>
+          ) : filteredProducts.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground text-lg">No products found in this category</p>
             </div>
