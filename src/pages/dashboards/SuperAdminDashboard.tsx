@@ -592,40 +592,40 @@ const SuperAdminDashboard = () => {
         return (
           <>
             <div className="mb-8">
-              <h1 className="text-3xl font-bold mb-2">All Users</h1>
-              <p className="text-muted-foreground">Manage all platform users</p>
+              <h1 className="text-3xl font-bold mb-2">All Customers</h1>
+              <p className="text-muted-foreground">Manage all customer accounts</p>
             </div>
 
             <Card>
               <CardHeader>
-                <CardTitle>User Management</CardTitle>
-                <CardDescription>View and manage all registered users</CardDescription>
+                <CardTitle>Customer Management</CardTitle>
+                <CardDescription>View and manage all customer accounts</CardDescription>
               </CardHeader>
               <CardContent>
                 {loadingUsers ? (
                   <p className="text-sm text-muted-foreground">Loading users...</p>
-                ) : allUsers.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No users found.</p>
+                ) : customerUsers.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No customers found.</p>
                 ) : (
                   <div className="space-y-3">
-                    {allUsers.map((adminUser) => (
+                    {customerUsers.map((customer) => (
                       <div
-                        key={adminUser.id}
+                        key={customer.id}
                         className="flex flex-col gap-2 border rounded-lg p-4 md:flex-row md:items-center md:justify-between"
                       >
                         <div>
-                          <h3 className="font-semibold">{adminUser.name}</h3>
-                          <p className="text-sm text-muted-foreground">{adminUser.email}</p>
+                          <h3 className="font-semibold">{customer.name}</h3>
+                          <p className="text-sm text-muted-foreground">{customer.email}</p>
                           <p className="text-xs text-muted-foreground">
-                            Role: <span className="font-medium capitalize">{adminUser.role}</span>
+                            Joined {new Date(customer.createdAt).toLocaleDateString()}
                           </p>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          <Badge variant={adminUser.isVerified ? 'default' : 'secondary'}>
-                            {adminUser.isVerified ? 'Verified' : 'Unverified'}
+                          <Badge variant={customer.isVerified ? 'default' : 'secondary'}>
+                            {customer.isVerified ? 'Verified' : 'Unverified'}
                           </Badge>
                           <Badge variant="outline">
-                            KYC: {adminUser.kycStatus ? adminUser.kycStatus : 'unverified'}
+                            KYC: {customer.kycStatus ? customer.kycStatus : 'unverified'}
                           </Badge>
                         </div>
                       </div>

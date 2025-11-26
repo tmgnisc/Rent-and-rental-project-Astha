@@ -11,6 +11,7 @@ const requiredVars = [
   'CLOUDINARY_CLOUD_NAME',
   'CLOUDINARY_API_KEY',
   'CLOUDINARY_API_SECRET',
+  'STRIPE_SECRET_KEY',
 ];
 
 const candidatePaths = [
@@ -74,5 +75,9 @@ module.exports = {
     apiSecret: process.env.CLOUDINARY_API_SECRET,
     uploadPreset: process.env.CLOUDINARY_UPLOAD_PRESET,
     assetFolder: process.env.CLOUDINARY_ASSET_FOLDER,
+  },
+  stripe: {
+    secretKey: process.env.STRIPE_SECRET_KEY,
+    currency: process.env.STRIPE_CURRENCY || 'usd',
   },
 };
