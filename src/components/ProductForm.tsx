@@ -19,8 +19,8 @@ type ProductFormFields = {
   description: string;
   category: ProductCategory;
   image_url: string;
-  rental_price_per_day: number;
-  refundable_deposit: number;
+  rental_price_per_day: string;
+  refundable_deposit: string;
   status: RentalStatus;
   specifications: Record<string, string>;
 };
@@ -38,8 +38,8 @@ const ProductForm = ({ product, onSubmit, onCancel, loading = false }: ProductFo
     description: '',
     category: 'electronics',
     image_url: '',
-    rental_price_per_day: 0,
-    refundable_deposit: 0,
+    rental_price_per_day: '',
+    refundable_deposit: '',
     status: 'available',
     specifications: {},
   });
@@ -56,8 +56,8 @@ const ProductForm = ({ product, onSubmit, onCancel, loading = false }: ProductFo
         description: product.description,
         category: product.category,
         image_url: product.image,
-        rental_price_per_day: product.rentalPricePerDay,
-        refundable_deposit: product.refundableDeposit,
+        rental_price_per_day: String(product.rentalPricePerDay ?? ''),
+        refundable_deposit: String(product.refundableDeposit ?? ''),
         status: product.status,
         specifications: product.specifications || {},
       });
@@ -76,8 +76,8 @@ const ProductForm = ({ product, onSubmit, onCancel, loading = false }: ProductFo
         description: '',
         category: 'electronics',
         image_url: '',
-        rental_price_per_day: 0,
-        refundable_deposit: 0,
+        rental_price_per_day: '',
+        refundable_deposit: '',
         status: 'available',
         specifications: {},
       });
@@ -105,9 +105,7 @@ const ProductForm = ({ product, onSubmit, onCancel, loading = false }: ProductFo
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: name === 'rental_price_per_day' || name === 'refundable_deposit' 
-        ? parseFloat(value) || 0 
-        : value,
+      [name]: value,
     }));
   };
 
@@ -149,17 +147,20 @@ const ProductForm = ({ product, onSubmit, onCancel, loading = false }: ProductFo
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    const rentalPrice = parseFloat(formData.rental_price_per_day || '0');
+    const refundableDeposit = parseFloat(formData.refundable_deposit || '0');
+
     if (!formData.name.trim()) {
       toast.error('Product name is required');
       return;
     }
 
-    if (formData.rental_price_per_day <= 0) {
+    if (!formData.rental_price_per_day.trim() || rentalPrice <= 0) {
       toast.error('Rental price per day must be greater than 0');
       return;
     }
 
-    if (formData.refundable_deposit < 0) {
+    if (refundableDeposit < 0) {
       toast.error('Refundable deposit cannot be negative');
       return;
     }
@@ -185,8 +186,8 @@ const ProductForm = ({ product, onSubmit, onCancel, loading = false }: ProductFo
     payload.append('name', formData.name.trim());
     payload.append('description', formData.description.trim());
     payload.append('category', formData.category);
-    payload.append('rental_price_per_day', String(formData.rental_price_per_day));
-    payload.append('refundable_deposit', String(formData.refundable_deposit));
+    payload.append('rental_price_per_day', formData.rental_price_per_day.trim());
+    payload.append('refundable_deposit', formData.refundable_deposit.trim());
     payload.append('status', formData.status);
 
     if (Object.keys(specifications).length > 0) {
