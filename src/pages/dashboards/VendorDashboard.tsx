@@ -34,6 +34,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Package,
   Plus,
   List,
@@ -45,6 +62,14 @@ import {
   LayoutDashboard,
   Clock,
 } from 'lucide-react';
+
+const RETURN_REJECTION_REASONS = [
+  'Product not received',
+  'Insufficient evidence of condition',
+  'Visible damage exceeds deposit',
+  'Missing accessories',
+  'Other',
+];
 
 type VendorRental = {
   id: string;
@@ -74,6 +99,8 @@ type VendorRental = {
   returnRequestStatus: 'none' | 'pending' | 'approved' | 'rejected';
   returnRequestNote: string | null;
   returnRequestImage: string | null;
+  returnRejectionReason: string | null;
+  returnRejectionNote: string | null;
 };
 
 type VendorAnalyticsSummary = {
@@ -102,6 +129,11 @@ const VendorDashboard = () => {
   const [analyticsSummary, setAnalyticsSummary] = useState<VendorAnalyticsSummary | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [selectedReturnRental, setSelectedReturnRental] = useState<VendorRental | null>(null);
+  const [rejectReason, setRejectReason] = useState<string>(RETURN_REJECTION_REASONS[0]);
+  const [rejectNote, setRejectNote] = useState('');
+  const [rejectSubmitting, setRejectSubmitting] = useState(false);
 
   const fetchProducts = useCallback(async () => {
     if (!token) return;
@@ -189,6 +221,20 @@ const VendorDashboard = () => {
     setActiveView('add-product');
   };
 
+  const openRejectModal = (rental: VendorRental) => {
+    setSelectedReturnRental(rental);
+    setRejectReason(RETURN_REJECTION_REASONS[0]);
+    setRejectNote('');
+    setRejectModalOpen(true);
+  };
+
+  const closeRejectModal = () => {
+    setRejectModalOpen(false);
+    setSelectedReturnRental(null);
+    setRejectReason(RETURN_REJECTION_REASONS[0]);
+    setRejectNote('');
+  };
+
   const handleHandover = async (rentalId: string) => {
     if (!token) return;
     setActionLoading(`handover-${rentalId}`);
@@ -220,6 +266,31 @@ const VendorDashboard = () => {
       toast.error(error instanceof Error ? error.message : 'Failed to mark as returned');
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleRejectReturn = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!selectedReturnRental || !token) return;
+    if (!rejectReason) {
+      toast.error('Please select a reason');
+      return;
+    }
+
+    setRejectSubmitting(true);
+    try {
+      await apiRequest(`/rentals/${selectedReturnRental.id}/return-reject`, {
+        method: 'PATCH',
+        token,
+        body: { reason: rejectReason, note: rejectNote },
+      });
+      toast.success('Return request rejected');
+      closeRejectModal();
+      await fetchAnalytics();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to reject return');
+    } finally {
+      setRejectSubmitting(false);
     }
   };
 
@@ -587,6 +658,17 @@ const VendorDashboard = () => {
                                 )}
                               </div>
                             )}
+                            {rental.returnRequestStatus === 'rejected' && (
+                              <div className="text-xs text-muted-foreground space-y-1">
+                                <p>
+                                  You rejected this request
+                                  {rental.returnRejectionReason && `: ${rental.returnRejectionReason}`}
+                                </p>
+                                {rental.returnRejectionNote && (
+                                  <p className="text-xs">Note: {rental.returnRejectionNote}</p>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
                         <div className="text-right space-y-2">
@@ -619,14 +701,23 @@ const VendorDashboard = () => {
                             {rental.status === 'active' &&
                               rental.handedOverAt &&
                               rental.returnRequestStatus === 'pending' && (
-                              <Button
-                                size="sm"
-                                onClick={() => handleReturn(rental.id)}
-                                disabled={actionLoading === `return-${rental.id}`}
-                              >
-                                  {actionLoading === `return-${rental.id}` ? 'Saving...' : 'Approve return'}
-                              </Button>
-                            )}
+                                <>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleReturn(rental.id)}
+                                    disabled={actionLoading === `return-${rental.id}`}
+                                  >
+                                    {actionLoading === `return-${rental.id}` ? 'Saving...' : 'Approve return'}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => openRejectModal(rental)}
+                                  >
+                                    Review / Reject
+                                  </Button>
+                                </>
+                              )}
                           </div>
                         </div>
                       </div>
@@ -665,6 +756,7 @@ const VendorDashboard = () => {
 
   return (
     <SidebarProvider>
+      <>
       <div className="flex min-h-screen w-full">
         <Sidebar>
           <SidebarHeader>
@@ -775,6 +867,61 @@ const VendorDashboard = () => {
           </AlertDialogContent>
         </AlertDialog>
       </div>
+    <Dialog open={rejectModalOpen} onOpenChange={(open) => (open ? setRejectModalOpen(true) : closeRejectModal())}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Reject Return Request</DialogTitle>
+          <DialogDescription>
+            Provide a reason so the superadmin and customer understand why the request was rejected.
+          </DialogDescription>
+        </DialogHeader>
+        {selectedReturnRental && (
+          <form onSubmit={handleRejectReturn} className="space-y-4">
+            <div>
+              <Label className="text-sm font-medium">Rental</Label>
+              <p className="text-sm text-muted-foreground">
+                {selectedReturnRental.product?.name || 'Product'} • Customer:{' '}
+                {selectedReturnRental.customer?.name || selectedReturnRental.customer?.email}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="reject-reason">Reason *</Label>
+              <Select value={rejectReason} onValueChange={setRejectReason}>
+                <SelectTrigger id="reject-reason">
+                  <SelectValue placeholder="Select reason" />
+                </SelectTrigger>
+                <SelectContent>
+                  {RETURN_REJECTION_REASONS.map((reasonOption) => (
+                    <SelectItem key={reasonOption} value={reasonOption}>
+                      {reasonOption}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="reject-note">Additional notes</Label>
+              <Textarea
+                id="reject-note"
+                rows={3}
+                value={rejectNote}
+                onChange={(event) => setRejectNote(event.target.value)}
+                placeholder="Explain what issue you found with the request..."
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={closeRejectModal} disabled={rejectSubmitting}>
+                Cancel
+              </Button>
+              <Button type="submit" variant="destructive" disabled={rejectSubmitting}>
+                {rejectSubmitting ? 'Submitting...' : 'Submit Rejection'}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
+      </DialogContent>
+    </Dialog>
+      </>
     </SidebarProvider>
   );
 };

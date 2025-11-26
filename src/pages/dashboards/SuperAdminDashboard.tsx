@@ -33,6 +33,7 @@ import {
   Settings,
   Home,
   UserCheck,
+  RotateCcw,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiRequest } from '@/lib/api';
@@ -68,6 +69,28 @@ type AdminUser = {
   createdAt: string;
 };
 
+type ReturnRequest = {
+  id: string;
+  status: 'pending' | 'active' | 'completed' | 'cancelled';
+  returnRequestStatus: 'pending' | 'approved' | 'rejected';
+  returnRequestNote: string | null;
+  returnRequestImage: string | null;
+  returnRejectionReason: string | null;
+  returnRejectionNote: string | null;
+  returnRequestedAt: string | null;
+  updatedAt: string;
+  product?: {
+    name: string | null;
+    image: string | null;
+    category: string | null;
+    vendorName: string | null;
+  } | null;
+  customer?: {
+    name: string | null;
+    email: string | null;
+  } | null;
+};
+
 const SuperAdminDashboard = () => {
   const { user, token } = useSelector((state: RootState) => state.auth);
   const navigate = useNavigate();
@@ -75,7 +98,16 @@ const SuperAdminDashboard = () => {
   const [loadingVendors, setLoadingVendors] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<
-    'overview' | 'vendor-approvals' | 'kyc-approvals' | 'all-users' | 'all-products' | 'all-vendors' | 'disputes' | 'analytics' | 'settings'
+    | 'overview'
+    | 'vendor-approvals'
+    | 'kyc-approvals'
+    | 'all-users'
+    | 'all-products'
+    | 'all-vendors'
+    | 'return-requests'
+    | 'disputes'
+    | 'analytics'
+    | 'settings'
   >('overview');
   const [pendingKycUsers, setPendingKycUsers] = useState<PendingKycUser[]>([]);
   const [loadingKyc, setLoadingKyc] = useState(false);
@@ -84,6 +116,8 @@ const SuperAdminDashboard = () => {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
+  const [returnRequests, setReturnRequests] = useState<ReturnRequest[]>([]);
+  const [loadingReturns, setLoadingReturns] = useState(false);
   const customerUsers = useMemo(
     () => allUsers.filter((u) => u.role === 'user'),
     [allUsers]
@@ -139,6 +173,21 @@ const SuperAdminDashboard = () => {
   };
 
   const fetchAllProducts = async () => {
+  const fetchReturnRequests = async () => {
+    if (!token) return;
+    setLoadingReturns(true);
+    try {
+      const data = await apiRequest<{ success: boolean; returns: ReturnRequest[] }>('/rentals/admin/returns', {
+        token,
+      });
+      setReturnRequests(data.returns);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to load return requests');
+    } finally {
+      setLoadingReturns(false);
+    }
+  };
+
     if (!token) return;
     setLoadingProducts(true);
     try {
@@ -159,6 +208,7 @@ const SuperAdminDashboard = () => {
       void fetchPendingKycUsers();
       void fetchAllUsers();
       void fetchAllProducts();
+      void fetchReturnRequests();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.role, token]);
@@ -199,12 +249,15 @@ const SuperAdminDashboard = () => {
     }
   };
 
+  const pendingReturnCount = returnRequests.filter((req) => req.returnRequestStatus === 'pending').length;
+
   const stats = [
     { label: 'Total Users', value: allUsers.length.toString(), icon: Users, change: '' },
     { label: 'Pending KYC', value: pendingKycUsers.length.toString(), icon: Shield, change: `${pendingKycUsers.length} awaiting approval` },
     { label: 'Pending Vendors', value: pendingVendors.length.toString(), icon: UserCheck, change: `${pendingVendors.length} awaiting review` },
     { label: 'Total Products', value: allProducts.length.toString(), icon: Package, change: 'Across all vendors' },
     { label: 'Platform Revenue', value: 'NPR 12.5L', icon: DollarSign, change: '+18% growth' },
+    { label: 'Pending Returns', value: pendingReturnCount.toString(), icon: RotateCcw, change: 'Awaiting vendor review' },
   ];
 
   const recentDisputes = [
@@ -908,6 +961,20 @@ const SuperAdminDashboard = () => {
                   >
                     <Package className="h-4 w-4" />
                     <span>All Products</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => setActiveView('return-requests')}
+                    isActive={activeView === 'return-requests'}
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                    <span>Return Requests</span>
+                    {pendingReturnCount > 0 && (
+                      <Badge variant="secondary" className="ml-auto">
+                        {pendingReturnCount}
+                      </Badge>
+                    )}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>

@@ -418,6 +418,8 @@ const markRentalReturned = async (req, res, next) => {
            status = 'completed',
            fine_amount = ?, 
            return_request_status = 'approved',
+           return_rejection_reason = NULL,
+           return_rejection_note = NULL,
            updated_at = CURRENT_TIMESTAMP
        WHERE id = ?`,
       [settlement.calculatedFine, id]

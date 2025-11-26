@@ -47,6 +47,8 @@ type UserRental = {
   returnRequestStatus: 'none' | 'pending' | 'approved' | 'rejected';
   returnRequestNote: string | null;
   returnRequestImage: string | null;
+  returnRejectionReason: string | null;
+  returnRejectionNote: string | null;
   product: RentalProduct | null;
 };
 
@@ -473,7 +475,15 @@ const UserDashboard = () => {
                         <p className="text-xs text-success font-semibold">Return approved</p>
                       )}
                       {rental.returnRequestStatus === 'rejected' && (
-                        <p className="text-xs text-destructive font-semibold">Return request rejected</p>
+                        <div className="text-xs text-destructive space-y-1 font-semibold">
+                          <p>
+                            Return request rejected
+                            {rental.returnRejectionReason && `: ${rental.returnRejectionReason}`}
+                          </p>
+                          {rental.returnRejectionNote && (
+                            <p className="font-normal">Note: {rental.returnRejectionNote}</p>
+                          )}
+                        </div>
                       )}
                       {rental.status === 'active' && rental.returnRequestStatus !== 'pending' && (
                         <Button size="sm" variant="outline" onClick={() => openReturnModal(rental)}>
