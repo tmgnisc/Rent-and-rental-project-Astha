@@ -33,10 +33,10 @@ const Login = () => {
         method: 'POST',
         body: { email, password },
       });
-
+      
       dispatch(setCredentials({ user: data.user, token: data.token }));
       toast.success(data.message || `Welcome back, ${data.user.name}!`);
-
+      
       if (data.user.role === 'superadmin') {
         navigate('/dashboard/superadmin');
       } else if (data.user.role === 'admin') {

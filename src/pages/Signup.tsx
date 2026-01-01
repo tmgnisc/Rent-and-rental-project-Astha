@@ -98,11 +98,11 @@ const Signup = () => {
         method: 'POST',
         body: {
           name: formData.name,
-          email: formData.email,
+        email: formData.email,
           password: formData.password,
         },
       });
-
+      
       dispatch(setCredentials({ user: data.user, token: data.token }));
       toast.success(data.message || 'Account created successfully!');
       navigate('/dashboard/user');

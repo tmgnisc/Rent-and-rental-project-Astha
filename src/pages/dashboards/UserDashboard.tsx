@@ -352,13 +352,13 @@ const UserDashboard = () => {
                       alt="KYC document preview"
                       className="w-40 h-40 object-cover rounded-lg border"
                     />
-                  </div>
+              </div>
                 )}
                 <div className="flex items-center gap-3">
                   <Button type="submit" disabled={kycUploading || !kycFile} className="gap-2">
                     <Upload className="h-4 w-4" />
                     {kycUploading ? 'Uploading...' : 'Upload Document'}
-                  </Button>
+              </Button>
                   {!kycFile && (
                     <p className="text-xs text-muted-foreground">
                       Select a file to enable upload.
@@ -367,8 +367,8 @@ const UserDashboard = () => {
                 </div>
               </form>
             )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -409,19 +409,19 @@ const UserDashboard = () => {
                 Rental history will appear here once you book your first item.
               </div>
             ) : (
-              <div className="space-y-4">
+            <div className="space-y-4">
                 {rentals.map((rental) => (
-                  <div
-                    key={rental.id}
+                <div 
+                  key={rental.id}
                     className="flex flex-col gap-4 border rounded-lg p-4 md:flex-row md:items-center md:justify-between"
                   >
                     <div className="flex items-center gap-4">
                       {rental.product?.image && (
-                        <img
+                  <img
                           src={rental.product.image}
                           alt={rental.product.name || 'Product image'}
                           className="w-16 h-16 rounded-lg object-cover"
-                        />
+                  />
                       )}
                       <div className="space-y-1">
                         <p className="font-semibold">{rental.product?.name || 'Product'}</p>
@@ -440,7 +440,7 @@ const UserDashboard = () => {
                         {rental.returnedAt && (
                           <p className="text-xs text-muted-foreground">
                             Returned on {new Date(rental.returnedAt).toLocaleDateString()}
-                          </p>
+                        </p>
                         )}
                       </div>
                     </div>
@@ -488,12 +488,12 @@ const UserDashboard = () => {
                       {rental.status === 'active' && rental.returnRequestStatus !== 'pending' && (
                         <Button size="sm" variant="outline" onClick={() => openReturnModal(rental)}>
                           Request Return
-                        </Button>
+                      </Button>
                       )}
-                    </div>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
+            </div>
             )}
           </CardContent>
         </Card>

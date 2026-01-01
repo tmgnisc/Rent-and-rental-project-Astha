@@ -53,7 +53,7 @@ if (missingVars.length > 0) {
     console.error(`   - ${key}`);
   });
   throw new Error(`Missing required environment variables: ${missingVars.join(', ')}`);
-}
+  }
 
 module.exports = {
   env: process.env.NODE_ENV || 'development',
