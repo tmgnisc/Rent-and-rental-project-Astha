@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Laptop, Shirt, Home, Dumbbell, Shield, Clock, DollarSign, Sparkles } from 'lucide-react';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { toast } from 'sonner';
 import { apiRequest } from '@/lib/api';
@@ -10,6 +10,13 @@ import { setProducts, setLoading, Product } from '@/store/slices/productsSlice';
 import ProductCard from '@/components/ProductCard';
 import { RootState } from '@/store/store';
 import Footer from '@/components/Footer';
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from '@/components/ui/carousel';
 
 const Landing = () => {
   const navigate = useNavigate();
@@ -69,45 +76,137 @@ const Landing = () => {
     },
   ];
 
+  // Hero carousel images - using free Unsplash images
+  const heroSlides = [
+    {
+      image: 'https://images.unsplash.com/photo-1498049794561-7780e7231661?w=1920&q=80',
+      title: 'Rent Premium Electronics',
+      subtitle: 'Latest gadgets and tech without the hefty price tag',
+    },
+    {
+      image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1920&q=80',
+      title: 'Fashion That Fits',
+      subtitle: 'Stylish clothing and accessories for every occasion',
+    },
+    {
+      image: 'https://images.unsplash.com/photo-1556912172-45b7abe8b7e4?w=1920&q=80',
+      title: 'Home Appliances Made Easy',
+      subtitle: 'Quality appliances for your home, rented with ease',
+    },
+    {
+      image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=1920&q=80',
+      title: 'Sports & Fitness Gear',
+      subtitle: 'Stay active with top-quality sports equipment',
+    },
+  ];
+
+  const [api, setApi] = useState<any>(null);
+  const [current, setCurrent] = useState(0);
+
+  useEffect(() => {
+    if (!api) {
+      return;
+    }
+
+    setCurrent(api.selectedScrollSnap() + 1);
+
+    api.on('select', () => {
+      setCurrent(api.selectedScrollSnap() + 1);
+    });
+  }, [api]);
+
+  // Auto-play carousel
+  const [isPaused, setIsPaused] = useState(false);
+
+  useEffect(() => {
+    if (!api || isPaused) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      if (api.canScrollNext()) {
+        api.scrollNext();
+      } else {
+        api.scrollTo(0);
+      }
+    }, 5000); // Change slide every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [api, isPaused]);
+
   return (
     <div className="min-h-screen">
-      {/* Hero Section */}
+      {/* Hero Section with Carousel */}
       <section 
-        className="relative py-20 md:py-32 overflow-hidden"
-        style={{ background: 'var(--gradient-hero)' }}
+        className="relative h-[600px] md:h-[700px] overflow-hidden"
+        onMouseEnter={() => setIsPaused(true)}
+        onMouseLeave={() => setIsPaused(false)}
       >
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMzLjMxNCAwIDYgMi42ODYgNiA2cy0yLjY4NiA2LTYgNi02LTIuNjg2LTYtNiAyLjY4Ni02IDYtNnoiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLW9wYWNpdHk9Ii4xIi8+PC9nPjwvc3ZnPg==')] opacity-20" />
-        
-        <div className="container mx-auto px-4 relative z-10">
-          <div className="max-w-3xl mx-auto text-center">
-            <h1 className="text-4xl md:text-6xl font-bold mb-6 text-white">
-              Rent Premium Products,
-              <br />
-              <span className="text-accent">Not Own Them</span>
-            </h1>
-            <p className="text-lg md:text-xl text-white/90 mb-8 max-w-2xl mx-auto">
-              Access the latest electronics, fashion, appliances, and sports gear without the commitment of buying. 
-              Flexible rentals, verified products, refundable deposits.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button 
-                variant="outlineWhite" 
-                size="lg"
-                onClick={() => navigate('/products')}
-                className="text-lg"
-              >
-                Browse Products
-              </Button>
-              <Button 
-                variant="accent" 
-                size="lg"
-                onClick={() => navigate('/signup')}
-                className="text-lg"
-              >
-                Get Started
-              </Button>
-            </div>
-          </div>
+        <Carousel setApi={setApi} className="w-full h-full">
+          <CarouselContent className="h-full">
+            {heroSlides.map((slide, index) => (
+              <CarouselItem key={index} className="h-full p-0">
+                <div className="relative w-full h-full">
+                  {/* Background Image */}
+                  <div
+                    className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+                    style={{ backgroundImage: `url(${slide.image})` }}
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/30" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                  </div>
+
+                  {/* Content Overlay */}
+                  <div className="container mx-auto px-4 h-full flex items-center relative z-10">
+                    <div className="max-w-3xl">
+                      <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 text-white leading-tight">
+                        {slide.title}
+                      </h1>
+                      <p className="text-lg md:text-xl lg:text-2xl text-white/90 mb-8 max-w-2xl">
+                        {slide.subtitle}
+                      </p>
+                      <div className="flex flex-col sm:flex-row gap-4">
+                        <Button
+                          variant="default"
+                          size="lg"
+                          onClick={() => navigate('/products')}
+                          className="text-lg bg-white text-primary hover:bg-white/90"
+                        >
+                          Browse Products
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="lg"
+                          onClick={() => navigate('/signup')}
+                          className="text-lg border-2 border-white text-white hover:bg-white/10"
+                        >
+                          Get Started
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+          <CarouselPrevious className="left-4 md:left-8 top-1/2 -translate-y-1/2 h-12 w-12 bg-white/20 hover:bg-white/30 border-white/30 text-white backdrop-blur-sm" />
+          <CarouselNext className="right-4 md:right-8 top-1/2 -translate-y-1/2 h-12 w-12 bg-white/20 hover:bg-white/30 border-white/30 text-white backdrop-blur-sm" />
+        </Carousel>
+
+        {/* Carousel Indicators */}
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex gap-2">
+          {heroSlides.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => api?.scrollTo(index)}
+              className={`h-2 rounded-full transition-all ${
+                current === index + 1
+                  ? 'w-8 bg-white'
+                  : 'w-2 bg-white/50 hover:bg-white/75'
+              }`}
+              aria-label={`Go to slide ${index + 1}`}
+            />
+          ))}
         </div>
       </section>
 
