@@ -1,8 +1,9 @@
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { Laptop, Shirt, Home, Dumbbell, Shield, Clock, DollarSign, Sparkles, Star, Users, TrendingUp, Package } from 'lucide-react';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { toast } from 'sonner';
 import { apiRequest } from '@/lib/api';
@@ -10,6 +11,7 @@ import { setProducts, setLoading, Product } from '@/store/slices/productsSlice';
 import ProductCard from '@/components/ProductCard';
 import { RootState } from '@/store/store';
 import Footer from '@/components/Footer';
+import Autoplay from 'embla-carousel-autoplay';
 
 const Landing = () => {
   const navigate = useNavigate();
@@ -40,10 +42,10 @@ const Landing = () => {
   const featuredProducts = products.filter(p => p.status === 'available').slice(0, 4);
 
   const categories = [
-    { name: 'Electronics', icon: Laptop, color: 'from-blue-500 to-cyan-500', path: '/products/electronics' },
-    { name: 'Fashion', icon: Shirt, color: 'from-pink-500 to-rose-500', path: '/products/fashion' },
-    { name: 'Appliances', icon: Home, color: 'from-green-500 to-emerald-500', path: '/products/appliances' },
-    { name: 'Sports', icon: Dumbbell, color: 'from-orange-500 to-amber-500', path: '/products/sports' },
+    { name: 'Electronics', icon: Laptop, color: 'from-blue-500 to-cyan-500', path: '/products' },
+    { name: 'Fashion', icon: Shirt, color: 'from-pink-500 to-rose-500', path: '/products' },
+    { name: 'Appliances', icon: Home, color: 'from-green-500 to-emerald-500', path: '/products' },
+    { name: 'Sports', icon: Dumbbell, color: 'from-orange-500 to-amber-500', path: '/products' },
   ];
 
   const features = [
@@ -70,46 +72,99 @@ const Landing = () => {
   ];
 
 
+  const autoplayPlugin = useRef(
+    Autoplay({
+      delay: 5000,
+      stopOnInteraction: true,
+    })
+  );
+
+  const heroImages = [
+    {
+      url: 'https://plus.unsplash.com/premium_photo-1661755100242-618b5a580db9?q=80&w=1632&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+      title: 'Rent Premium Products',
+      subtitle: 'Not Own Them',
+      description: 'Access the latest electronics, fashion, appliances, and sports gear without the commitment of buying.'
+    },
+    {
+      url: 'https://images.unsplash.com/photo-1618347191821-51285853505f?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+      title: 'Flexible Rentals',
+      subtitle: 'Your Way',
+      description: 'Rent for a day, week, or month - your choice. Verified products with refundable deposits.'
+    },
+    {
+      url: 'https://plus.unsplash.com/premium_photo-1682090260563-191f8160ca48?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+      title: 'Quality Guaranteed',
+      subtitle: 'Every Time',
+      description: 'All products are quality-checked and verified by our team for your peace of mind.'
+    }
+  ];
+
   return (
     <div className="min-h-screen">
-      {/* Hero Section */}
-      <section 
-        className="relative py-20 md:py-32 overflow-hidden"
-        style={{ background: 'var(--gradient-hero)' }}
-      >
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMzLjMxNCAwIDYgMi42ODYgNiA2cy0yLjY4NiA2LTYgNi02LTIuNjg2LTYtNiAyLjY4Ni02IDYtNnoiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLW9wYWNpdHk9Ii4xIi8+PC9nPjwvc3ZnPg==')] opacity-20" />
-        
-        <div className="container mx-auto px-4 relative z-10">
-          <div className="max-w-3xl mx-auto text-center">
-            <h1 className="text-4xl md:text-6xl font-bold mb-6 text-white">
-              Rent Premium Products,
-              <br />
-              <span className="text-accent">Not Own Them</span>
-            </h1>
-            <p className="text-lg md:text-xl text-white/90 mb-8 max-w-2xl mx-auto">
-              Access the latest electronics, fashion, appliances, and sports gear without the commitment of buying. 
-              Flexible rentals, verified products, refundable deposits.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button 
-                variant="outlineWhite" 
-                size="lg"
-                onClick={() => navigate('/products')}
-                className="text-lg"
-              >
-                Browse Products
-              </Button>
-              <Button 
-                variant="accent" 
-                size="lg"
-                onClick={() => navigate('/signup')}
-                className="text-lg"
-              >
-                Get Started
-              </Button>
-            </div>
-          </div>
-        </div>
+      {/* Hero Section with Carousel */}
+      <section className="relative overflow-hidden">
+        <Carousel
+          opts={{
+            align: "start",
+            loop: true,
+          }}
+          plugins={[autoplayPlugin.current]}
+          className="w-full"
+        >
+          <CarouselContent>
+            {heroImages.map((image, index) => (
+              <CarouselItem key={index}>
+                <div className="relative h-[600px] md:h-[700px] w-full">
+                  {/* Background Image */}
+                  <div 
+                    className="absolute inset-0 bg-cover bg-center"
+                    style={{ 
+                      backgroundImage: `url('${image.url}')`,
+                    }}
+                  >
+                    {/* Dark Overlay for better text readability */}
+                    <div className="absolute inset-0 bg-black/50" />
+                  </div>
+                  
+                  {/* Content */}
+                  <div className="container mx-auto px-4 relative z-10 h-full flex items-center">
+                    <div className="max-w-3xl mx-auto text-center">
+                      <h1 className="text-4xl md:text-6xl font-bold mb-6 text-white drop-shadow-lg">
+                        {image.title}
+                        <br />
+                        <span className="text-accent">{image.subtitle}</span>
+                      </h1>
+                      <p className="text-lg md:text-xl text-white/95 mb-8 max-w-2xl mx-auto drop-shadow-md">
+                        {image.description}
+                      </p>
+                      <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                        <Button 
+                          variant="outlineWhite" 
+                          size="lg"
+                          onClick={() => navigate('/products')}
+                          className="text-lg"
+                        >
+                          Browse Products
+                        </Button>
+                        <Button 
+                          variant="accent" 
+                          size="lg"
+                          onClick={() => navigate('/signup')}
+                          className="text-lg"
+                        >
+                          Get Started
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+          <CarouselPrevious className="left-4 bg-white/20 hover:bg-white/30 text-white border-white/30" />
+          <CarouselNext className="right-4 bg-white/20 hover:bg-white/30 text-white border-white/30" />
+        </Carousel>
       </section>
 
       {/* Stats Section */}

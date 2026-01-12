@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '@/store/store';
 import { logout } from '@/store/slices/authSlice';
 import { Button } from '@/components/ui/button';
-import { Package, User, LayoutDashboard, LogOut, Menu } from 'lucide-react';
+import { User, LayoutDashboard, LogOut, Menu } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,17 +37,11 @@ const Navbar = () => {
       <Link to="/products" className="hover:text-primary transition-colors">
         Products
       </Link>
-      <Link to="/products/electronics" className="hover:text-primary transition-colors">
-        Electronics
+      <Link to="/about" className="hover:text-primary transition-colors">
+        About
       </Link>
-      <Link to="/products/fashion" className="hover:text-primary transition-colors">
-        Fashion
-      </Link>
-      <Link to="/products/appliances" className="hover:text-primary transition-colors">
-        Appliances
-      </Link>
-      <Link to="/products/sports" className="hover:text-primary transition-colors">
-        Sports
+      <Link to="/contact" className="hover:text-primary transition-colors">
+        Contact
       </Link>
     </>
   );
@@ -58,7 +52,7 @@ const Navbar = () => {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 font-bold text-xl">
-            <Package className="h-6 w-6 text-primary" />
+            <img src="/logo.png" alt="Rent&Return Logo" className="h-10 w-10 object-contain" />
             <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
               Rent&Return
             </span>

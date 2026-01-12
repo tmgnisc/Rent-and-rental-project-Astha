@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiRequest } from '@/lib/api';
 
@@ -118,9 +117,7 @@ const Signup = () => {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center space-y-2">
           <div className="flex justify-center mb-2">
-            <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center">
-              <Package className="h-7 w-7 text-primary-foreground" />
-            </div>
+            <img src="/logo.png" alt="Rent&Return Logo" className="h-16 w-16 object-contain" />
           </div>
           <CardTitle className="text-2xl">Create Account</CardTitle>
           <CardDescription>Join Rent&Return as a renter or vendor</CardDescription>

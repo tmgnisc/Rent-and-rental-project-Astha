@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Package, Mail, Phone, MapPin, Facebook, Twitter, Instagram, Linkedin } from 'lucide-react';
+import { Mail, Phone, MapPin, Facebook, Twitter, Instagram, Linkedin } from 'lucide-react';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -7,21 +7,19 @@ const Footer = () => {
   const footerLinks = {
     product: [
       { name: 'All Products', path: '/products' },
-      { name: 'Electronics', path: '/products/electronics' },
-      { name: 'Fashion', path: '/products/fashion' },
-      { name: 'Appliances', path: '/products/appliances' },
-      { name: 'Sports', path: '/products/sports' },
+      { name: 'Browse Products', path: '/products' },
+      { name: 'Featured Items', path: '/products' },
+      { name: 'New Arrivals', path: '/products' },
     ],
     company: [
-      { name: 'About Us', path: '#' },
-      { name: 'How It Works', path: '#' },
-      { name: 'Blog', path: '#' },
-      { name: 'Careers', path: '#' },
-      { name: 'Contact', path: '#' },
+      { name: 'About Us', path: '/about' },
+      { name: 'Contact Us', path: '/contact' },
+      { name: 'How It Works', path: '/about' },
+      { name: 'Become a Vendor', path: '/signup' },
     ],
     support: [
-      { name: 'Help Center', path: '#' },
-      { name: 'FAQs', path: '#' },
+      { name: 'Help Center', path: '/contact' },
+      { name: 'FAQs', path: '/contact' },
       { name: 'Terms & Conditions', path: '#' },
       { name: 'Privacy Policy', path: '#' },
       { name: 'Refund Policy', path: '#' },
@@ -42,7 +40,7 @@ const Footer = () => {
           {/* Brand Section */}
           <div className="lg:col-span-2">
             <Link to="/" className="flex items-center gap-2 font-bold text-xl mb-4">
-              <Package className="h-6 w-6 text-primary" />
+              <img src="/logo.png" alt="Rent&Return Logo" className="h-10 w-10 object-contain" />
               <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
                 Rent&Return
               </span>

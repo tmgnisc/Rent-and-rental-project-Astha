@@ -9,6 +9,8 @@ import Navbar from './components/Navbar';
 import Landing from "./pages/Landing";
 import Products from "./pages/Products";
 import ProductDetail from "./pages/ProductDetail";
+import About from "./pages/About";
+import Contact from "./pages/Contact";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -34,6 +36,8 @@ const App = () => (
             <Route path="/products" element={<Products />} />
             <Route path="/products/:category" element={<Products />} />
             <Route path="/product/:id" element={<ProductDetail />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/contact" element={<Contact />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
