@@ -17,6 +17,18 @@ const Landing = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { products, loading } = useSelector((state: RootState) => state.products);
+  const { user } = useSelector((state: RootState) => state.auth);
+
+  // Redirect vendors and superadmins to their dashboards
+  useEffect(() => {
+    if (user) {
+      if (user.role === 'vendor') {
+        navigate('/dashboard/vendor', { replace: true });
+      } else if (user.role === 'superadmin') {
+        navigate('/dashboard/superadmin', { replace: true });
+      }
+    }
+  }, [user, navigate]);
 
   const loadFeaturedProducts = useCallback(async () => {
     dispatch(setLoading(true));

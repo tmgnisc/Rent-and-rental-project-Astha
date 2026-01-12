@@ -1,4 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/store/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,6 +12,15 @@ import { toast } from 'sonner';
 import Footer from '@/components/Footer';
 
 const Contact = () => {
+  const navigate = useNavigate();
+  const { user } = useSelector((state: RootState) => state.auth);
+
+  // Redirect vendors and superadmins to their dashboards
+  useEffect(() => {
+    if (user && (user.role === 'vendor' || user.role === 'superadmin')) {
+      navigate(user.role === 'vendor' ? '/dashboard/vendor' : '/dashboard/superadmin', { replace: true });
+    }
+  }, [user, navigate]);
   const [formData, setFormData] = useState({
     name: '',
     email: '',

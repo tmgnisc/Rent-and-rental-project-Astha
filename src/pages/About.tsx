@@ -1,8 +1,21 @@
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/store/store';
 import { Card, CardContent } from '@/components/ui/card';
 import { Shield, Users, TrendingUp, Award, Clock, Heart } from 'lucide-react';
 import Footer from '@/components/Footer';
 
 const About = () => {
+  const navigate = useNavigate();
+  const { user } = useSelector((state: RootState) => state.auth);
+
+  // Redirect vendors and superadmins to their dashboards
+  useEffect(() => {
+    if (user && (user.role === 'vendor' || user.role === 'superadmin')) {
+      navigate(user.role === 'vendor' ? '/dashboard/vendor' : '/dashboard/superadmin', { replace: true });
+    }
+  }, [user, navigate]);
   const values = [
     {
       icon: Shield,

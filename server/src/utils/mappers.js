@@ -10,6 +10,7 @@ const mapUserRecord = (record) => ({
   kycDocumentUrl: record.kyc_document_url || null,
   kycStatus: record.kyc_status || 'unverified',
   kycVerifiedBy: record.kyc_verified_by || null,
+  profileImage: record.profile_image || null,
   createdAt: record.created_at,
   updatedAt: record.updated_at,
 });

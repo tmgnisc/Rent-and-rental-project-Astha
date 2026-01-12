@@ -14,6 +14,7 @@ export interface User {
   kycDocumentUrl?: string | null;
   kycStatus?: 'unverified' | 'pending' | 'approved' | 'rejected' | null;
   kycVerifiedBy?: string | null;
+  profileImage?: string | null;
 }
 
 interface AuthState {

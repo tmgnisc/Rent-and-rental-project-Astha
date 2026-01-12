@@ -11,6 +11,7 @@ import { Product } from '@/store/slices/productsSlice';
 import { toast } from 'sonner';
 import { apiRequest } from '@/lib/api';
 import Footer from '@/components/Footer';
+import LocationPicker from '@/components/LocationPicker';
 import {
   Dialog,
   DialogContent,
@@ -31,6 +32,9 @@ type RentalFormState = {
   days: number;
   deliveryAddress: string;
   contactPhone: string;
+  deliveryLatitude?: number;
+  deliveryLongitude?: number;
+  deliveryLocationAddress?: string;
 };
 
 type RentalApiResponse = {
@@ -58,6 +62,9 @@ const ProductDetail = () => {
     days: 3,
     deliveryAddress: '',
     contactPhone: '',
+    deliveryLatitude: undefined,
+    deliveryLongitude: undefined,
+    deliveryLocationAddress: undefined,
   });
 
   const today = useMemo(() => new Date().toISOString().split('T')[0], []);
@@ -148,6 +155,9 @@ useEffect(() => {
         days: rentForm.days,
         deliveryAddress: rentForm.deliveryAddress,
         contactPhone: rentForm.contactPhone,
+        deliveryLatitude: rentForm.deliveryLatitude,
+        deliveryLongitude: rentForm.deliveryLongitude,
+        deliveryLocationAddress: rentForm.deliveryLocationAddress,
       };
 
       const response = await apiRequest<RentalApiResponse>('/rentals', {
@@ -411,6 +421,22 @@ useEffect(() => {
                       setRentForm((prev) => ({ ...prev, deliveryAddress: event.target.value }))
                     }
                     required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Your Location (Optional)</Label>
+                  <LocationPicker
+                    onLocationSelect={(lat, lng, address) => {
+                      setRentForm((prev) => ({
+                        ...prev,
+                        deliveryLatitude: lat,
+                        deliveryLongitude: lng,
+                        deliveryLocationAddress: address,
+                      }));
+                    }}
+                    defaultLatitude={rentForm.deliveryLatitude}
+                    defaultLongitude={rentForm.deliveryLongitude}
                   />
                 </div>
 

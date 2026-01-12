@@ -181,6 +181,44 @@ const getAllVendors = async (req, res, next) => {
   }
 };
 
+const updateProfileImage = async (req, res, next) => {
+  if (!req.file) {
+    return next(new ApiError(400, 'Profile image is required'));
+  }
+
+  const connection = await pool.getConnection();
+  try {
+    let imageUrl = '';
+    try {
+      const uploadResult = await uploadBufferToCloudinary(
+        req.file.buffer,
+        'rent-return/profile-images'
+      );
+      imageUrl = uploadResult.secure_url;
+    } catch (error) {
+      throw new ApiError(500, 'Failed to upload profile image');
+    }
+
+    await connection.query(
+      `UPDATE users
+       SET profile_image = ?,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [imageUrl, req.user.id]
+    );
+
+    res.json({
+      success: true,
+      message: 'Profile image updated successfully',
+      profileImage: imageUrl,
+    });
+  } catch (err) {
+    next(err);
+  } finally {
+    connection.release();
+  }
+};
+
 module.exports = {
   uploadKycDocument,
   getKycStatus,
@@ -188,4 +226,5 @@ module.exports = {
   reviewKycStatus,
   getAllUsers,
   getAllVendors,
+  updateProfileImage,
 };

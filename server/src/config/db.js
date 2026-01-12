@@ -231,6 +231,23 @@ const migrateUsersTable = async (connection) => {
       }
     }
 
+    const [profileImageColumn] = await connection.query(
+      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
+       WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'users' AND COLUMN_NAME = 'profile_image'`,
+      [db.database]
+    );
+
+    if (profileImageColumn.length === 0) {
+      try {
+        await connection.query(`
+          ALTER TABLE users
+          ADD COLUMN profile_image VARCHAR(500) AFTER kyc_verified_by
+        `);
+      } catch (err) {
+        // ignore
+      }
+    }
+
     try {
       await connection.query(`
         ALTER TABLE users
@@ -281,6 +298,9 @@ const migrateRentalsTable = async (connection) => {
       { name: 'payment_intent_id', definition: 'VARCHAR(255)' },
       { name: 'delivery_address', definition: 'VARCHAR(255)' },
       { name: 'contact_phone', definition: 'VARCHAR(20)' },
+      { name: 'delivery_latitude', definition: 'DECIMAL(10, 8)' },
+      { name: 'delivery_longitude', definition: 'DECIMAL(11, 8)' },
+      { name: 'delivery_location_address', definition: 'TEXT' },
       { name: 'handed_over_at', definition: 'DATETIME NULL' },
       { name: 'returned_at', definition: 'DATETIME NULL' },
       { name: 'fine_amount', definition: 'DECIMAL(10,2) DEFAULT 0' },

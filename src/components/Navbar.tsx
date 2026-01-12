@@ -32,8 +32,23 @@ const Navbar = () => {
     return '/dashboard/user';
   };
 
+  // Hide navbar links for vendors and superadmin
+  const shouldShowNavLinks = !user || (user.role !== 'vendor' && user.role !== 'superadmin');
+
+  const handleLogoClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (user && (user.role === 'vendor' || user.role === 'superadmin')) {
+      navigate(getDashboardRoute());
+    } else {
+      navigate('/');
+    }
+  };
+
   const NavLinks = () => (
     <>
+      <Link to="/" className="hover:text-primary transition-colors">
+        Home
+      </Link>
       <Link to="/products" className="hover:text-primary transition-colors">
         Products
       </Link>
@@ -51,17 +66,19 @@ const Navbar = () => {
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 font-bold text-xl">
+          <a href="/" onClick={handleLogoClick} className="flex items-center gap-2 font-bold text-xl cursor-pointer">
             <img src="/logo.png" alt="Rent&Return Logo" className="h-10 w-10 object-contain" />
             <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
               Rent&Return
             </span>
-          </Link>
+          </a>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-6 text-sm font-medium">
-            <NavLinks />
-          </div>
+          {shouldShowNavLinks && (
+            <div className="hidden md:flex items-center gap-6 text-sm font-medium">
+              <NavLinks />
+            </div>
+          )}
 
           {/* Right Side Actions */}
           <div className="flex items-center gap-2">
@@ -69,15 +86,36 @@ const Navbar = () => {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="gap-2">
-                    <User className="h-4 w-4" />
+                    {user.profileImage ? (
+                      <img
+                        src={user.profileImage}
+                        alt={user.name}
+                        className="h-8 w-8 rounded-full object-cover border border-border"
+                      />
+                    ) : (
+                      <User className="h-4 w-4" />
+                    )}
                     <span className="hidden sm:inline">{user.name}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
-                  <div className="px-2 py-1.5 text-sm">
-                    <p className="font-medium">{user.name}</p>
-                    <p className="text-xs text-muted-foreground">{user.email}</p>
-                    <p className="text-xs text-primary capitalize mt-1">{user.role}</p>
+                  <div className="px-2 py-1.5 text-sm flex items-center gap-3">
+                    {user.profileImage ? (
+                      <img
+                        src={user.profileImage}
+                        alt={user.name}
+                        className="h-10 w-10 rounded-full object-cover border border-border"
+                      />
+                    ) : (
+                      <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center border border-border">
+                        <User className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <p className="font-medium">{user.name}</p>
+                      <p className="text-xs text-muted-foreground">{user.email}</p>
+                      <p className="text-xs text-primary capitalize mt-1">{user.role}</p>
+                    </div>
                   </div>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => navigate(getDashboardRoute())}>
@@ -110,7 +148,7 @@ const Navbar = () => {
               </SheetTrigger>
               <SheetContent>
                 <div className="flex flex-col gap-4 mt-8">
-                  <NavLinks />
+                  {shouldShowNavLinks && <NavLinks />}
                   {!isAuthenticated && (
                     <>
                       <Button variant="ghost" onClick={() => { navigate('/login'); setMobileOpen(false); }}>

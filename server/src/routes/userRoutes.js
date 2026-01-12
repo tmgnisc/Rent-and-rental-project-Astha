@@ -6,6 +6,7 @@ const {
   reviewKycStatus,
   getAllUsers,
   getAllVendors,
+  updateProfileImage,
 } = require('../controllers/userController');
 const { protect } = require('../middleware/authMiddleware');
 const { authorizeRoles } = require('../middleware/roleMiddleware');
@@ -17,6 +18,7 @@ router.use(protect);
 
 router.get('/kyc', getKycStatus);
 router.post('/kyc', upload.single('document'), uploadKycDocument);
+router.patch('/profile-image', upload.single('profileImage'), updateProfileImage);
 
 router.get('/kyc/pending', authorizeRoles('superadmin'), getPendingKycUsers);
 router.patch('/kyc/:id', authorizeRoles('superadmin'), reviewKycStatus);

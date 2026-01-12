@@ -77,8 +77,11 @@ const createRental = async (req, res, next) => {
         payment_intent_id,
         delivery_address,
         contact_phone,
+        delivery_latitude,
+        delivery_longitude,
+        delivery_location_address,
         daily_fine
-      ) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         rentalId,
         req.user.id,
@@ -89,6 +92,9 @@ const createRental = async (req, res, next) => {
         paymentIntent.id,
         payload.deliveryAddress,
         payload.contactPhone,
+        payload.deliveryLatitude || null,
+        payload.deliveryLongitude || null,
+        payload.deliveryLocationAddress || null,
         dailyFine,
       ]
     );

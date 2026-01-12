@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { RootState } from '@/store/store';
 import {
   setProducts,
@@ -23,10 +23,19 @@ import { Button } from '@/components/ui/button';
 
 const Products = () => {
   const { category } = useParams<{ category?: ProductCategory }>();
+  const navigate = useNavigate();
   const dispatch = useDispatch();
   const { products, selectedCategory, loading, searchTerm, maxPriceFilter } = useSelector(
     (state: RootState) => state.products
   );
+  const { user } = useSelector((state: RootState) => state.auth);
+
+  // Redirect vendors and superadmins to their dashboards
+  useEffect(() => {
+    if (user && (user.role === 'vendor' || user.role === 'superadmin')) {
+      navigate(user.role === 'vendor' ? '/dashboard/vendor' : '/dashboard/superadmin', { replace: true });
+    }
+  }, [user, navigate]);
 
   const loadProducts = useCallback(async () => {
     dispatch(setLoading(true));

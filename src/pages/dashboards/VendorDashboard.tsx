@@ -1,11 +1,13 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
+import { setCredentials } from '@/store/slices/authSlice';
 import { RootState } from '@/store/store';
 import { Product } from '@/store/slices/productsSlice';
 import { apiRequest } from '@/lib/api';
 import { toast } from 'sonner';
 import ProductForm from '@/components/ProductForm';
+import RentalMapView from '@/components/RentalMapView';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,6 +45,7 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -61,6 +64,10 @@ import {
   Home,
   LayoutDashboard,
   Clock,
+  Eye,
+  EyeOff,
+  Upload,
+  User as UserIcon,
 } from 'lucide-react';
 
 const RETURN_REJECTION_REASONS = [
@@ -90,6 +97,11 @@ type VendorRental = {
     name: string | null;
     email: string | null;
   } | null;
+  deliveryAddress?: string;
+  contactPhone?: string;
+  deliveryLatitude?: number | null;
+  deliveryLongitude?: number | null;
+  deliveryLocationAddress?: string | null;
   handedOverAt: string | null;
   returnedAt: string | null;
   overdueDays: number;
@@ -117,6 +129,7 @@ type VendorAnalyticsSummary = {
 
 const VendorDashboard = () => {
   const { user, token } = useSelector((state: RootState) => state.auth);
+  const dispatch = useDispatch();
   const navigate = useNavigate();
   const [activeView, setActiveView] = useState<'overview' | 'products' | 'add-product' | 'analytics' | 'settings'>('overview');
   const [products, setProducts] = useState<Product[]>([]);
@@ -130,10 +143,22 @@ const VendorDashboard = () => {
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [selectedRentalForMap, setSelectedRentalForMap] = useState<VendorRental | null>(null);
   const [selectedReturnRental, setSelectedReturnRental] = useState<VendorRental | null>(null);
   const [rejectReason, setRejectReason] = useState<string>(RETURN_REJECTION_REASONS[0]);
   const [rejectNote, setRejectNote] = useState('');
   const [rejectSubmitting, setRejectSubmitting] = useState(false);
+  const [profileImage, setProfileImage] = useState<File | null>(null);
+  const [profileImagePreview, setProfileImagePreview] = useState<string>('');
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [settingsSubmitting, setSettingsSubmitting] = useState(false);
 
   const fetchProducts = useCallback(async () => {
     if (!token) return;
@@ -688,6 +713,15 @@ const VendorDashboard = () => {
                             NPR {Number(rental.totalAmount || 0).toFixed(2)}
                           </p>
                           <div className="flex flex-wrap justify-end gap-2">
+                            {(rental.deliveryLatitude && rental.deliveryLongitude) && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setSelectedRentalForMap(rental)}
+                              >
+                                View Location
+                              </Button>
+                            )}
                             {rental.status === 'active' && !rental.handedOverAt && (
                               <Button
                                 size="sm"
@@ -737,15 +771,254 @@ const VendorDashboard = () => {
               <p className="text-muted-foreground">Manage your vendor account settings</p>
             </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Account Settings</CardTitle>
-                <CardDescription>Update your profile and preferences</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">Settings form will be implemented here</p>
-              </CardContent>
-            </Card>
+            <div className="space-y-6">
+              {/* Profile Image Section */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Profile Image</CardTitle>
+                  <CardDescription>Update your profile picture</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-6">
+                    <div className="relative">
+                      {profileImagePreview || user?.profileImage ? (
+                        <img
+                          src={profileImagePreview || user?.profileImage}
+                          alt="Profile"
+                          className="w-24 h-24 rounded-full object-cover border-2 border-border"
+                        />
+                      ) : (
+                        <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center border-2 border-border">
+                          <UserIcon className="h-12 w-12 text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 space-y-3">
+                      <div>
+                        <Label htmlFor="profile-image" className="cursor-pointer">
+                          <div className="flex items-center gap-2">
+                            <Button type="button" variant="outline" size="sm" asChild>
+                              <span>
+                                <Upload className="h-4 w-4 mr-2" />
+                                Choose Image
+                              </span>
+                            </Button>
+                          </div>
+                          <Input
+                            id="profile-image"
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                setProfileImage(file);
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  setProfileImagePreview(reader.result as string);
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                          />
+                        </Label>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          JPG, PNG or GIF. Max size 2MB.
+                        </p>
+                      </div>
+                      {profileImage && (
+                        <Button
+                          size="sm"
+                          onClick={async () => {
+                            if (!token || !profileImage) return;
+                            setSettingsSubmitting(true);
+                            try {
+                              const formData = new FormData();
+                              formData.append('profileImage', profileImage);
+                              
+                              const response = await apiRequest<{ success: boolean; profileImage: string }>('/users/profile-image', {
+                                method: 'PATCH',
+                                token,
+                                body: formData,
+                              });
+                              
+                              // Update user in Redux store with new profile image
+                              if (user && token) {
+                                dispatch(setCredentials({
+                                  user: { ...user, profileImage: response.profileImage },
+                                  token,
+                                }));
+                              }
+                              
+                              toast.success('Profile image updated successfully!');
+                              setProfileImage(null);
+                              setProfileImagePreview(response.profileImage);
+                            } catch (error) {
+                              toast.error(error instanceof Error ? error.message : 'Failed to update image');
+                            } finally {
+                              setSettingsSubmitting(false);
+                            }
+                          }}
+                          disabled={settingsSubmitting}
+                        >
+                          {settingsSubmitting ? 'Uploading...' : 'Save Image'}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Change Password Section */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Change Password</CardTitle>
+                  <CardDescription>Update your account password</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      if (!token) return;
+                      
+                      if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+                        toast.error('New passwords do not match');
+                        return;
+                      }
+
+                      if (passwordForm.newPassword.length < 8) {
+                        toast.error('New password must be at least 8 characters');
+                        return;
+                      }
+
+                      setSettingsSubmitting(true);
+                      try {
+                        await apiRequest('/auth/change-password', {
+                          method: 'PATCH',
+                          token,
+                          body: {
+                            currentPassword: passwordForm.currentPassword,
+                            newPassword: passwordForm.newPassword,
+                          },
+                        });
+                        toast.success('Password updated successfully!');
+                        setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                      } catch (error) {
+                        toast.error(error instanceof Error ? error.message : 'Failed to update password');
+                      } finally {
+                        setSettingsSubmitting(false);
+                      }
+                    }}
+                    className="space-y-4"
+                  >
+                    <div className="space-y-2">
+                      <Label htmlFor="current-password">Current Password</Label>
+                      <div className="relative">
+                        <Input
+                          id="current-password"
+                          type={showCurrentPassword ? 'text' : 'password'}
+                          value={passwordForm.currentPassword}
+                          onChange={(e) =>
+                            setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))
+                          }
+                          className="pr-10"
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="new-password">New Password</Label>
+                      <div className="relative">
+                        <Input
+                          id="new-password"
+                          type={showNewPassword ? 'text' : 'password'}
+                          value={passwordForm.newPassword}
+                          onChange={(e) =>
+                            setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))
+                          }
+                          className="pr-10"
+                          required
+                          minLength={8}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPassword(!showNewPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="confirm-password">Confirm New Password</Label>
+                      <div className="relative">
+                        <Input
+                          id="confirm-password"
+                          type={showConfirmPassword ? 'text' : 'password'}
+                          value={passwordForm.confirmPassword}
+                          onChange={(e) =>
+                            setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))
+                          }
+                          className="pr-10"
+                          required
+                          minLength={8}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end">
+                      <Button type="submit" disabled={settingsSubmitting}>
+                        {settingsSubmitting ? 'Updating...' : 'Update Password'}
+                      </Button>
+                    </div>
+                  </form>
+                </CardContent>
+              </Card>
+
+              {/* Account Information */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Account Information</CardTitle>
+                  <CardDescription>Your vendor account details</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex justify-between py-2 border-b">
+                    <span className="text-sm font-medium">Name:</span>
+                    <span className="text-sm text-muted-foreground">{user?.name}</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b">
+                    <span className="text-sm font-medium">Email:</span>
+                    <span className="text-sm text-muted-foreground">{user?.email}</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b">
+                    <span className="text-sm font-medium">Role:</span>
+                    <span className="text-sm text-muted-foreground capitalize">{user?.role}</span>
+                  </div>
+                  <div className="flex justify-between py-2">
+                    <span className="text-sm font-medium">Verification Status:</span>
+                    <Badge variant={user?.verificationStatus === 'approved' ? 'default' : 'outline'}>
+                      {user?.verificationStatus}
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </>
         );
 
@@ -918,6 +1191,33 @@ const VendorDashboard = () => {
               </Button>
             </DialogFooter>
           </form>
+        )}
+      </DialogContent>
+    </Dialog>
+
+    {/* Rental Location Map Dialog */}
+    <Dialog open={!!selectedRentalForMap} onOpenChange={() => setSelectedRentalForMap(null)}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Rental Location & Details</DialogTitle>
+        </DialogHeader>
+        {selectedRentalForMap && (
+          <RentalMapView
+            rental={{
+              id: selectedRentalForMap.id,
+              customerName: selectedRentalForMap.customer?.name || 'Unknown',
+              customerEmail: selectedRentalForMap.customer?.email || '',
+              productName: selectedRentalForMap.product?.name || 'Product',
+              startDate: selectedRentalForMap.startDate,
+              endDate: selectedRentalForMap.dueDate,
+              deliveryAddress: selectedRentalForMap.deliveryAddress || '',
+              contactPhone: selectedRentalForMap.contactPhone || '',
+              deliveryLatitude: selectedRentalForMap.deliveryLatitude,
+              deliveryLongitude: selectedRentalForMap.deliveryLongitude,
+              deliveryLocationAddress: selectedRentalForMap.deliveryLocationAddress,
+              status: selectedRentalForMap.status,
+            }}
+          />
         )}
       </DialogContent>
     </Dialog>
